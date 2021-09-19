@@ -5,189 +5,139 @@ date: "[FILL IN THE DATE]"
 output: html_document
 ---
 
-<style type="text/css">
-  body{
-  font-size: 14pt;
-}
-</style>
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-# Practical Exercise 1
-The goals of today's exercise are:
-
-1) create a _GitHub_ account and link it with _RStudio_ and create a new repository 
-2) getting you back into _R_ and to get you acquainted with _Python_
-3) brushing up on the general linear model
-
-# 1) Creating a _GitHub_ account and linking it to RStudio
-
-## _GitHub_
-
-Go to www.github.com and sign up if you aren't already  
-![__Figure__: _GitHub_'s front page](images/github_front_page.png)  
-
-If you are not already using personal tokens for authentication, have a look here:  
-https://www.edgoad.com/2021/02/using-personal-access-tokens-with-git-and-github.html
-
-Then install _R_ and _RStudio_ if you haven't already
-
-## _R_
-
-### Mac and Windows
-_R_ can be downloaded and installed from https://mirrors.dotsrc.org/cran/ (Danish mirror)  
-
-### Linux
-Can also be installed from the link above, but it is more convenient to use your package manager, e.g.
-
-![__Figure__: my package manager](images/package_manager.png)
-
-### _RStudio_ (IDE: Integrated Development Editor)
-
-_RStudio_ can be downloaded from https://www.rstudio.com/products/rstudio/download/
-
-## Link _GitHub_ and _RStudio_
-
-Link your _GitHub_ account to _RStudio_ and create a repository for the assignments and practical exercises.  
-Follow this tutorial: https://happygitwithr.com (Chapter 12)
-
-# 2) Prepare your _R_ and _Python_ environments
-Today's first goal is to get your _R_ and _Python_ environments up and running  
-
-## _R_
-
-### _R_ Packages
-
-Make sure you can run _R Markdown_; create a new _R Markdown_ document - if you're asked to install extra packages, do so.  
-We'll need more packages later, but we'll install as we go...
-
-## _Python_
-
-Due to the fact that _Python_ packages have a lot of interdependencies that may cause compability problems if you keep everything in one big environment, it is advisable to use a package management system like _Conda_.  
-I propose using _Miniconda_ that can be downloaded from here: https://docs.conda.io/en/latest/miniconda.html (choose 64-bit)  
-  
-We'll not do much with it today, but will return to it for the machine learning part.  
-  
-An advantage is that separate environments can be maintained that are each focused on its own niche:  
-
-![__Figure__: my environments: _mne_ is for analysis of magnetoencephalographic data, _psychopy_ is for presenting experiment scenarios, _fsl_ is for processing magnetic resonance imaging data](images/list_of_environments.png)
-
-Then use the yml-file from _GitHub_ to create the appropriate environment:
-```{bash, eval=FALSE}
-# CODE TO BE RUN IN A BASH TERMINAL
-## create environment
-conda env create -f methods3_environment.yml
-## activate environment
-conda activate methods3
-## after activation, you can run Spyder, (IDE)
-spyder
-```
-
-![__Figure__: _Spyder_](images/spyder.png)
-
-### Check that it works
-
-```{python}
-a = 2 + 2
-b = a + 3
-print(b)
-
-a_list = [1, 'a', 2.3] # square brackets initialize lists that can contain any combination of any type of object (an integer, a string and a float in this case)
-## Note that Python is zero-indexed ()
-print(a_list[0]) ## prints the first entry
-print(a_list[1]) ## prints the second entry
-```
-### Zero-indexing (reference)
-https://www.cs.utexas.edu/users/EWD/transcriptions/EWD08xx/EWD831.html
-
-# 3) Brushing up on the General Linear Model
-
-We'll do a light start and get you back in the game of thinking about formulae and how to build your linear models  
-Finally, we'll have a few exercises, finishing off today's practical exercises 
-
-## A list of formulae
-```{r, eval=FALSE}
-formula <- y ~ x ## y as a function of x
-y ~ 1 ## model the intercept for "y"
-y ~ x ## model the main effect of x and the intercept for y
-y ~ x + 1 ## the same as above (+ 1 is implicit)
-y ~ x + 0 ## model the main effect of x and no intercept
-y ~ x - 1 ## the same as above
-y ~ 0 ## doesn't model anything (for completeness)
-y ~ x + z ## model the main effects x and z (and an intercept)
-y ~ x:z ## model interaction of x and z
-y ~ x * z ## model the main effects x and z and their interaction
-y ~ x + z + x:z ## the same as above
-```
-
-## Dataset mtcars
-Let's look at the "mtcars" data:  
-
-_[, 1]   mpg   Miles/(US) gallon  
-[, 2]	 cyl	 Number of cylinders  
-[, 3]	 disp	 Displacement (cu.in.)  
-[, 4]	 hp	 Gross horsepower  
-[, 5]	 drat	 Rear axle ratio  
-[, 6]	 wt	 Weight (lb/1000)  
-[, 7]	 qsec	 1/4 mile time  
-[, 8]	 vs	 V/S  
-[, 9]	 am	 Transmission (0 = automatic, 1 = manual)  
-[,10]	 gear	 Number of forward gears  
-[,11]	 carb	 Number of carburetors_  
-
-
-## Miles per gallon and weight
-
-We can do a scatter plot, and it looks like there is some relation between fuel usage and the weight of cars.
-Let's investigate this further
-
-```{r,fig.height=5, fig.width=6}
-par(font.lab=2, font.axis=2, cex=1.2)
-plot(mpg ~ wt, data=mtcars, xlab='Weight (lb/1000)', ylab='Miles/(US) gallon',
-     main='Scatter plot', ylim=c(0, 40))
-```
-
-# Exercises and objectives
-The objectives of today's exercises are:  
-1) To remind you of the (general) linear model, and how we can use it to make models in R  
-2) To make some informal model comparisons  
-3) To estimate models based on binomially distributed data  
-
-If you would like to read more about a given function, just prepend the function with a question mark, e.g.  
-``` {r, eval=FALSE}
-?lm
-```
-
-REMEMBER: In your report, make sure to include code that can reproduce the answers requested in the exercises below   
+# 3) The General Linear Model
 
 ## Exercise 1
 The general linear model: $Y = X \beta + \epsilon$:  
 Do a linear regression, expressing fuel usage as a function of weight using the function __lm__  
+
 ```{r, eval=FALSE}
+
 data(mtcars)
-model <- lm(formula=..., data=...)
+model <- lm(mpg~wt, data=mtcars)
+summary(model)
+
 ```
+
 1. extract $\hat{\beta}$, $Y$, $\hat{Y}$, $X$ and $\epsilon$ from __model__ (hint: have a look at the function __model.matrix__)  
     i. create a plot that illustrates $Y$ and $\hat{Y}$ (if you are feeling ambitious, also include $\epsilon$ (hint: you can use the function __arrows__))
+    
+First,we construct the design matrix. In this matrix, we have 1 in the first column (intercept). We have 32 observations, one for each predictor 1 in the design matrix' left column.
+
+t(X) means we transpose our design matric
+t(X) %*% X is doing matrix multiplacation
+solve() is matrix inversion
+```{r}
+
+X <- model.matrix(model) # extracting X (our design matrix)
+Y <- mtcars$mpg # extracting Y (from our dataset)
+Y
+bhat <- solve(t(X) %*% X) %*% t(X) %*% Y # our estimate of beta
+bhat
+yhat <- X %*% bhat
+yhat
+errors <- Y-yhat
+```
+
+We have now extracted 
+
+$\hat{\beta}$ = behat
+$Y$ = Y
+$\hat{Y}$ = yhat 
+$X$ = X
+$\epsilon$ = errors
+
+
+1.i: creating a plot that illustrates $Y$ and $\hat{Y}$
+```{r}
+# One way to plot it 
+mtcars %>% 
+  ggplot(aes(wt, mpg))+
+  geom_point(aes(y = yhat), colour = "orange") +
+  geom_point(aes(y = Y), colour = "darkred")
+
+
+# Another way to plot it 
+plot(Y, yhat)
+abline(a = 0, b = 1)
+arrows(Y, yhat, x1 = Y, y1 = Y, length = 0.1, angle = 3, code = 2, col = "blue", lty = par("lty"), lwd = par("lwd"))
+title("Actual Y-values and Estimated Y-values")
+
+```
+In the first plot, the dark red dots signifies the actual Y values, whereas the orange dots signify the predicted values. 
+
+In the second plot, the X axis represents the Actual values, whereas the Y axis represents the predicted values of Y. If our model predicted the y values perfectly, all dots would be placed on top of the abline. 
+
+    
 2. estimate $\beta$ for a quadratic model ($y = {\beta}_{2} x^2 + {\beta}_{1} x + {\beta}_{0}$) using ordinary least squares _without_ using __lm__; $\hat{\beta} = {({X}^{T} X)}^{-1} {X}^{T} Y$ (hint: add a third column to $X$ from step 1)
+
+```{r}
+
+n <- 32 
+X <- cbind(rep(1, n), mtcars$wt, mtcars$wt^2) # creating a design matrix which has 32 rows and a column with 1's in row. I also add a column of our Y value, and one with our Y value squared. 
+
+
+# I estimate the quadratic beta using the OLS estimator
+beta_qua <- solve(t(X)%*%X)%*%t(X)%*%Y
+beta_qua # intercept to slopes (en slope normal og en for vores squared værdi)
+
+```
+
 3. compare your acquired $\hat{\beta}$ with the output of the corresponding quadratic model created using __lm__ (hint: use the function __I__, see details under help and the sub-section formula operators here: https://www.datacamp.com/community/tutorials/r-formula-tutorial)  
     i. create a plot that illustrates $Y$ and $\hat{Y}$ (if you are feeling ambitious, also include $\epsilon$ (hint: you can use the function __arrows__))  
+    
+```{r}
+compare <- lm(Y ~ X[,2] + X[,3], data=mtcars)
+
+# comparison
+compare
+beta_qua
+
+```
+    
+Comparing the above with beta_qua, I see that both our "compare" model and beta_qua gives the following coefficients: 49.93, -13.38, and 1.171.
+
+```{r}
+
+# Plotting actual vs estimated (quadratic) y values
+yhatols <- X%*%beta_qua # finding y_hat
+plot(Y, yhatols)
+abline(a = 0, b = 1, col = 'darkgreen')
+
+```
+    
 
 ## Exercise 2
+
 Compare the plotted quadratic fit to the linear fit  
 
 1. which seems better?  
+
+```{r}
+summary(comparing)
+```
+
 2. calculate the sum of squared errors, (show the calculation based on $\epsilon$). Which fit has the lower sum?  
+
+```{r}
+
+```
+
 3. now make a cubic fit ($y = {\beta}_{3} x^3 + {\beta}_{2} x^2 + {\beta}_{1} x + {\beta}_{0}$) and compare it to the quadratic fit  
     i. create a plot that illustrates $Y$ and $\hat{Y}$ for both the cubic and the quadratic fits (plot them in the same plot)  
     ii. compare the sum of squared errors  
     iii. what's the estimated value of the "cubic" (${\beta}_3$) parameter? Comment on this!  
+    
+```{r}
+
+```
+    
 4. bonus question: which summary statistic is the fitted value (_Intercept_ or ${\beta}_0$ in $y = {\beta}_0$) below identical to?
+
 ```{r, echo=FALSE}
 lm(mpg ~ 1, data=mtcars)
 ```
+
 ## Exercise 3
 Doing a logistic regression - estimating the probability that a car has automatic transmission (0) or manual transmission (1) based on its weight
 ```{r, eval=FALSE}
