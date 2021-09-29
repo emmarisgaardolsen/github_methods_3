@@ -258,7 +258,7 @@ qqnorm(oldmodel.stdres,
 
 ```
 
-From looking at the QQ plot, the old model seems to fulfil the assumptions of the GLM better. However, averaging the outcome variable across scenarious discards a lot of potentially usefull information, so in practice, it is not a very informative model.
+From looking at the QQ plot, the old model seems to fulfil the assumptions of the GLM better. Averaging the outcome variable across scenarious discards a lot of potentially usefull information, so in practice, it is not a very informative model.
 
 
 iv) Also make a quantile-quantile plot for the residuals of the  multilevel model with two intercepts. Does it look alright?
@@ -267,11 +267,27 @@ qqnorm(resid(m4))
 qqline(resid(m4))
 ```
 
-It looks alright, although something seems to happen at the higher theoretical quantiles (skewness?)
+It looks alright, although the residual distribution seems to be heavy tailed. 
 
 
 3) Plotting the two-intercepts model
     i. Create a plot for each subject, (similar to part 3 in Exercise 1), this time also indicating the fitted value for each of the subjects for each for the scenarios (hint use `fixef` to get the "grand effects" for each gender and `ranef` to get the subject- and scenario-specific effects)
+
+```{r}
+fitted <- fitted(m4)
+
+politeness_na_removed <- politeness %>% 
+  na.omit()
+
+politeness_na_removed$fitted_f0mn <- fitted
+
+ggplot(politeness_na_removed, (aes(x = scenario, y = f0mn, color = attitude)))+ 
+  geom_point()+
+  geom_point(aes(scenario, fitted_f0mn), color = "darkgrey", shape = 17)+
+  facet_wrap(.~subject)+ 
+  theme_bw()
+```
+
     
 ```{r}
 library(lme4)
@@ -300,22 +316,53 @@ m5 <- lmer(f0mn~gender+attitude+(1|subject)+(1|scenario),data=politeness)
   ii. make a separate model that besides the main effects of _attitude_ and _gender_ also include their interaction
 
 ```{r}
-m6 <- lmer(f0mn~gender+attitude+gender*attitude+(1|subject)+(1|scenario),data=politeness)
+
+m6 <- lmer(f0mn~gender+attitude+gender:attitude+(1|subject)+(1|scenario),data=politeness)
 
 summary(m6)
+
 ```
 
    iii. describe what the interaction term in the model says about Korean men's pitch when they are polite relative to Korean women's pitch when they are polite (you don't have to judge whether it is interesting)  
    
-Our interaction term "genderM:attitudepol" is 5.544. This tells us by how much the slope of our regression change when we go from a female "inf" to female "polite"?? (forstå lige data). 
+Being a male and polite has an interaction effect of ($\beta_{3}=5.544, SE = 8.284, p > 0.05 $).
 
-  The presence of a significant interaction indicates that the effect of one predictor variable on the response variable is different at different values of the other predictor variable. It is tested by adding a term to the model in which the two predictor variables are multiplied. The regression equation will look like this:
+Our interaction term "genderM:attitudepol" is 5.544. This tells us by how much the slope of our regression change when we go from a female "inf" to female "polite"?? (forstå lige data). 
   
 The interaction term is not statistically significant at the 5% significance level (as p-value > 0.05), and thus doesn't justify the inclusion of the term in our model. 
   
-The coefficient on the interaction term represents the difference in the slope for f0mn comparing 
+The coefficient on the interaction term represents the difference in the slope for f0mn comparing female and males as well as polite/informal. 
   
 2) Compare the three models (1. gender as a main effect; 2. gender and attitude as main effects; 3. gender and attitude as main effects and the interaction between them. For all three models model unique intercepts for _subject_ and _scenario_) using residual variance, residual standard deviation and AIC.  
+
+```{r}
+
+# 1. gender as a main effect model 
+m4 <- lmer(f0mn~gender+(1|subject)+(1|scenario),data=politeness)
+
+# 2. gender and attitude as main effects. m5 
+m5 <- lmer(f0mn~gender+attitude+(1|subject)+(1|scenario),data=politeness)
+
+# 3. gender and attitude as main effects and the interaction between them. 
+m6 <- lmer(f0mn~gender+attitude+gender*attitude+(1|subject)+(1|scenario),data=politeness)
+
+# Residual variance
+tibble(summary(m4)$sigma^2,
+       summary(m5)$sigma^2,
+       summary(m6)$sigma^2)
+
+# Residual standard deviation
+tibble(sigma(m4),
+       sigma(m5),
+       sigma(m6))
+
+# AIC
+anova(m4,m5,m6)
+
+
+```
+
+
 3)  Choose the model that you think describe the data the best - and write a short report on the main findings based on this model. At least include the following:
   i. describe what the dataset consists of  
   ii. what can you conclude about the effect of gender and attitude on pitch (if anything)?  
@@ -323,8 +370,9 @@ The coefficient on the interaction term represents the difference in the slope f
   iv. describe the variance components of the second level (if any)  
   v. include a Quantile-Quantile plot of your chosen model  
   
-  
-  
+I have chosen model m5.
+
+
 # Note to myself
 
 The "genderM" estimate: if you subtract the estimate in the first row frmo the second, you'll geet the mean of the male f0hmn value. The estimate for "intercept" is the estimate for the Female category, and the estimate for the difference between the females and the male category. The p-value in each row is simply a test of whether the coefficient to the left is significantly different from zero. ´
