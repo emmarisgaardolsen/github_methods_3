@@ -95,7 +95,7 @@ df$trial <- as.factor(df$trial)
 
 *_target.contrast_*: indicates the contrast of the target stimulus, relative to the background, adjusted to match the threshold of each individual by using the QUEST-algorithm. It is numeric and should stay numeric as we are dealing with a continuous variable with values falling within the range of 0-1*
 
-*_cue_*: cue shown to participants to indicate the set of possible digits that might appear on each trail. There were 36 different types (0-35). As this variable contains nominal data, it should be reencoded into a factor.
+*_cue_*: cue shown to participants to indicate the set of possible digits that might appear on each trail. There were 36 different combination of cues (0-35). The task-column specifies the number of potential targets cued. As the _cue_ variable contains nominal data, it should be reencoded into a factor.
 
 ```{r}
 df$cue <- as.factor(df$cue)
@@ -131,7 +131,7 @@ Encoded as numeric as it is continuous data.
 df$obj.resp <- as.factor(df$obj.resp)
 ```
 
-*subject*: participant ID, enabling us to distinguish between data collected from different participants. Is a character variable but should be re-encoded as a factor as we are dealing with a repeated measures design and therefore need to be able to model subject as random intercepts in the analysis phase.
+*subject*: participant ID, enabling us to distinguish between data collected from different participants. Is a character variable but should be re-encoded as a factor as we are dealing with a repeated measures design and therefore need to be able to model subject as a random effect in the analysis phase.
 
 ```{r}
 df$subject <- as.factor(df$subject)
@@ -206,9 +206,40 @@ ggplot(df_staircase, (aes(x = target.contrast, y = correct,colour=subject)))+
   facet_wrap(.~subject)+ 
   labs(title = "No Pooling model: correct ~ target.contrast*subject") +
   theme_bw()
+
+```
+
+
+```{r}
+
+# make function to run a model for each participant
+
+nopoolfun <- function(i){
+  dat <- staircase[which(staircase$subject == i),]
+  model <- glm(correct~target.contrast, family = 'binomial', data=dat)
+  fitted <- model$fitted.values
+  plot_dat <- data.frame(cbind(fitted,'target.contrast'=dat$target.contrast))
+
+plot <- ggplot(plot_dat, aes(x = target.contrast, y = fitted))+
+  geom_point()+
+  xlab('Target Contrast')+
+  ylim(c(0,1))+
+  theme_minimal()
+
+return(plot)
+}
+
+# Running the function for each participant
+
+for (participant in 1:29){
+  nopoolfun(participant)
+}
+
+subject <- c(1:29)
 ```
 
 From visual inspection, it becomes clear that the fits are very bad. A subset dataframe containing only the staircasing data doesn't contain enough data to plot the logistic functions.
+
 
 
   iv. on top of those plots, add the estimated functions (on the _target.contrast_ range from 0-1) for each subject based on partial pooling model (use `glmer` from the package `lme4`) where unique intercepts and slopes for _target.contrast_ are modelled for each _subject_  
@@ -385,21 +416,44 @@ summary(partial)
 1) Initialise a new data frame, `data.count`. _count_ should indicate the number of times they categorized their experience as _pas_ 1-4 for each _task_. I.e. the data frame would have for subject 1: for task:singles, pas1 was used # times, pas2 was used # times, pas3 was used # times and pas4 was used # times. You would then do the same for task:pairs and task:quadruplet  
 
 ```{r}
-## you can start from this if you want to, but you can also make your own from scratch
-data.count <- data.frame(count = numeric(), 
-                         pas = numeric(df_experiment$pas), ## remember to make this into a factor afterwards
-                         task = numeric(df_experiment$task), ## and this too
-                         subject = numeric(df_experiment$subject)) ## and this too
-```        
+pacman::p_load(dplyr)
+
+data_count <- df %>% 
+  group_by(subject, task, pas) %>% 
+  dplyr::summarize("count" = n())
+
+data_count
+# the cause of this error is R’s confusion which summarize function (dplyr vs. plyr) it should use.
+```
+
 
 2) Now fit a multilevel model that models a unique "slope" for _pas_ for each _subject_ with the interaction between _pas_ and _task_ and their main effects being modelled  
-    i. which family should be used?  
-    ii. why is a slope for _pas_ not really being modelled?  
-    iii. if you get a convergence error, try another algorithm (the default is the _Nelder_Mead_) - try (_bobyqa_) for which the `dfoptim` package is needed. In `glmer`, you can add the following for the `control` argument: `glmerControl(optimizer="bobyqa")` (if you are interested, also have a look at the function `allFit`)
-    iv. when you have a converging fit - fit a model with only the main effects of _pas_ and _task_. Compare this with the model that also includes the interaction  
-    v. indicate which of the two models, you would choose and why  
-    vi. based on your chosen model - write a short report on what this says about the distribution of ratings as dependent on _pas_ and _task_  
-    vii. include a plot that shows the estimated amount of ratings for four subjects of your choosing 
+
+```{r}
+
+model1 <- glmer(count~pas*task + (pas|subject), data = data_count, family = poisson, control = glmerControl(optimizer="bobyqa")) 
+
+summary(model1)
+```
+ 
+
+summary(model1)
+  i. which family should be used?  
+  
+  Poisson Regression should be used as it is best for modeling a dependent variable that consists of "count data" given one or more independent variable. Poisson distributed data is integer-valued, discrete, not continuous, and is limited to non-negative values.  It also assumes that the errors follow a Poisson distribution rather than a normal distribution, and models the natural log of the response variable, ln(Y), as a linear function of the coefficients (rather than modeling Y as a linear function of the regression coefficients).
+  
+  ii. why is a slope for _pas_ not really being modelled?  
+  
+  _pas_ is encoded as a factor, meaning that it computes the analysis for each level seperately. Thus, we'll get a slope for each separate level of _pas_, where each slope is relative to the reference level. 
+  
+  
+  iii. if you get a convergence error, try another algorithm (the default is the _Nelder_Mead_) - try (_bobyqa_) for which the `dfoptim` package is needed. In `glmer`, you can add the following for the `control` argument: `glmerControl(optimizer="bobyqa")` (if you are interested, also have a look at the function `allFit`)
+  
+  
+  iv. when you have a converging fit - fit a model with only the main effects of _pas_ and _task_. Compare this with the model that also includes the interaction  
+  v. indicate which of the two models, you would choose and why  
+  vi. based on your chosen model - write a short report on what this says about the distribution of ratings as dependent on _pas_ and _task_  
+  vii. include a plot that shows the estimated amount of ratings for four subjects of your choosing 
 3) Finally, fit a multilevel model that models _correct_ as dependent on _task_ with a unique intercept for each _subject_  
     i. does _task_ explain performance?  
     ii. add _pas_ as a main effect on top of _task_ - what are the consequences of that?  

@@ -1,0 +1,289 @@
+---
+title: "practical_exercise_3, Methods 3, 2021, autumn semester"
+author: 'Mina Almasi, Daniel Blumenkranz, Anton Drasbæk Schiønning, Matilde Sterup'
+date: "[29-09-2021]"
+output: html_document
+---
+
+<style type="text/css">
+  body{
+  font-size: 14pt;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+pacman::p_load(tidyverse, lme4, readbulk)
+```
+
+# Exercises and objectives (TEST)
+The objectives of the exercises of this assignment are:  
+1) Download and organise the data and model and plot staircase responses based on fits of logistic functions  
+2) Fit multilevel models for response times  
+3) Fit multilevel models for count data  
+
+REMEMBER: In your report, make sure to include code that can reproduce the answers requested in the exercises below (__MAKE A KNITTED VERSION__)  
+REMEMBER: This assignment will be part of your final portfolio
+
+## Exercise 1
+
+Go to https://osf.io/ecxsj/files/ and download the files associated with Experiment 2 (there should be 29).  
+The data is associated with Experiment 2 of the article at the following DOI https://doi.org/10.1016/j.concog.2019.03.007  
+
+1) Put the data from all subjects into a single data frame  
+```{r}
+data <- read_bulk(directory = "/Users/emmaolsen/OneDrive - Aarhus Universitet/Methods3/github_methods_3/week_03/experiment_2")
+
+
+```
+
+2) Describe the data and construct extra variables from the existing variables  
+    i. add a variable to the data frame and call it _correct_ (have it be a _logical_ variable). Assign a 1 to each row where the subject indicated the correct answer and a 0 to each row where the subject indicated the incorrect answer (__Hint:__ the variable _obj.resp_ indicates whether the subject answered "even", _e_ or "odd", _o_, and the variable _target_type_ indicates what was actually presented.
+
+```{r}
+data$correct <- ifelse(data$obj.resp == "e" & data$target.type == "even"|data$obj.resp == "o" & data$target.type == "odd", 1, 0)
+```
+
+
+  ii. describe what the following variables in the data frame contain, _trial.type_, _pas_, _trial_, _target.contrast_, _cue_, _task_, _target_type_, _rt.subj_, _rt.obj_, _obj.resp_, _subject_ and _correct_. (That means you can ignore the rest of the variables in your description). For each of them, indicate and argue for what `class` they should be classified into, e.g. _factor_, _numeric_ etc.  
+
+The following variables in the dataset are:
+_trial.type_ 
+Whether the trial was a part of the staircase procedure (i.e., before beginning the experiment, coded as "staircase") or whether it was a part of the experiment (coded as "experiment"). ¨
+*Class*: This variable is currently coded as a character, but should be coded as a factor if used in modeling. However, we might only be interested in the experimental phase and thus should consider filtering out the *staircase*. 
+
+_pas_:
+Subjective rating of how clearly the target was seen by the participant. Measured using the Perceptual Awareness Scale. According to the article (Andersen et. al) the PAS has 4 categorically different ratings: 
+  
+  No Experience (NE), Weak Glimpse (WG), Almost Clear Experience (ACE) and Clear Experience (CE)
+  
+*Class* This variable is coded as numeric from 1-4 (referring to the 4 levels in the order above). This should be recoded to be a factor, as we are dealing with ordinal data. 
+
+_trial_:
+Number of trial. Resets when the experiment begins. 
+*Class* This variable should also be coded as a factor considering it is nominal data.
+
+_target.contrast_:
+The contrast of the target stimulus relative to the background (adjusted to each participant'
+s threshold. After the staircase procedure, this contrast remained fixed for the experimental phase.)
+*Class* We are dealing with continous data between 0 and 1 so it should be numeric class which it is already.
+
+_cue_: 
+Type of cues. 36 different types. 
+*Class* This is nominal data so it should be coded as a factor.
+
+_task_:
+Indicates the task setting. *singles* refers to the task setting being with 2 numbers shown in the cue (e.g., 2:9), *pairs* refers to 4 numbers (e.g., 24:57), and *quadruplet* refers to 8 numbers (e.g., 2468:3579). 
+*Class* This is also nominal data and should be coded as a factor.
+
+_target_type_: 
+Whether the target was an even or odd number. 
+*Class* This is binary data (coded as "even" or "odd") and should be coded as factor.
+
+_rt.subj_: 
+Reaction time for the rating of the _pas_ (i.e., their confidence on how clearly they saw the target). 
+*Class* We are dealing reaction times in seconds which means that it is continuous data that should be coded as numeric.
+
+_rt.obj_: 
+Reaction time of the participant's answer to whether the target was odd or even (i.e., the objective of the experiment).
+*Class* Same as before: Reaction times that are continuous and should thus be coded as numeric.
+
+_obj.resp_: 
+The participant's answer to the task
+*Class* This is binary data (coded as "o" = odd and "e" = even) and should be coded as factor.
+
+_subject_: 
+Participant index. 
+*Class* This is nominal data and should therefore be recoded to be a factor.
+
+_correct_: 
+Indicates whether the object response matches the *target_type* (i.e, whether the participant answered correctly.) 
+*Class* This is binary data (coded as 0 = incorrect and 1 = correct) and should be coded as factor.
+
+*Fixing the Classes*
+```{r}
+data$trial.type <- as.factor(data$trial.type)
+data$pas <- as.factor(data$pas)
+data$trial <- as.factor(data$trial)
+data$cue <- as.factor(data$cue)
+data$task <- as.factor(data$task)
+data$target.type <- as.factor(data$target.type)
+data$obj.resp <- as.factor(data$obj.resp)
+data$subject <- as.factor(data$subject)
+data$correct <- as.factor(data$correct)
+ls.str(data)
+```
+
+
+
+  iii. for the staircasing part __only__, create a plot for each subject where you plot the estimated function (on the _target.contrast_ range from 0-1) based on the fitted values of a model (use `glm`) that models _correct_ as dependent on _target.contrast_. These plots will be our _no-pooling_ model. Comment on the fits - do we have enough data to plot the logistic functions?
+  
+```{r 1.2}
+# Complete Pooling
+staircase <- data %>% filter(trial.type== "staircase")
+m <- glm(correct~target.contrast, data = staircase, family = "binomial")
+fitted <- fitted(m)
+staircase$fitted_values <- fitted
+ggplot(staircase, (aes(x = target.contrast, y = correct)))+ 
+  geom_point()+
+  geom_line(aes(target.contrast, fitted)) +
+  facet_wrap(.~subject)+ 
+  labs(title = "Complete Pooling") +
+  theme_bw()
+```
+
+
+```{r 1.2iii}
+# No Pooling
+staircase <- data %>% filter(trial.type== "staircase")
+m <- glm(correct~target.contrast + subject + target.contrast:subject, data = staircase, family = "binomial")
+fitted <- fitted(m)
+staircase$fitted_values <- fitted
+ggplot(staircase, (aes(x = target.contrast, y = correct)))+ 
+  geom_point()+
+  geom_line(aes(target.contrast, fitted), color = "red") +
+  facet_wrap(.~subject)+ 
+  labs(title = "No Pooling") +
+  theme_bw()
+```
+
+
+The fits are generally very poor - in particular for the low contrast trials. It appears that we do not have enough data to plot the logistic functions. We need more incorrect trials in order for us to do a logistic regression. The consequence of this is that the fitted values do not take shape of the sigmoid function.
+  
+  iv. on top of those plots, add the estimated functions (on the _target.contrast_ range from 0-1) for each subject based on partial pooling model (use `glmer` from the package `lme4`) where unique intercepts and slopes for _target.contrast_ are modelled for each _subject_  
+
+```{r 1.2iv}
+# Partial Pooling
+staircase <- data %>% filter(trial.type== "staircase")
+m <- glmer(correct~target.contrast + (target.contrast|subject), data = staircase, family = "binomial")
+fitted <- fitted(m)
+staircase$fitted_values <- fitted
+ggplot(staircase, (aes(x = target.contrast, y = correct)))+ 
+  geom_point()+
+  geom_line(aes(target.contrast, fitted), color = "red") +
+  facet_wrap(.~subject)+ 
+  labs(title = "Partial Pooling") +
+  theme_bw()
+```
+
+
+  v. in your own words, describe how the partial pooling model allows for a better fit for each subject
+  
+Compared to the complete pooling model, the partial pooling model adapts the fit to both the general tendencies in the data as well as the subjective differences. Hence the fit for each subject becomes better, because we account for the fact that they have different baselines and slopes. 
+
+## Exercise 2
+
+Now we __only__ look at the _experiment_ trials (_trial.type_)  
+
+1) Pick four subjects and plot their Quantile-Quantile (Q-Q) plots for the residuals of their objective response times (_rt.obj_) based on a model where only intercept is modelled  
+```{r 2.1}
+experiment <- data %>% filter(trial.type== "experiment")
+subject7 <- experiment %>% filter(subject == 7)
+subject10 <- experiment %>% filter(subject == 10)
+subject12 <- experiment %>% filter(subject == 12)
+subject29 <- experiment %>% filter(subject == 29)
+model7 <- lm(rt.obj ~ 1, data = subject7)
+qq7 <- ggplot(subject7, aes(sample=residuals(model7))) +
+  stat_qq() +
+  geom_qq_line() +
+  labs(title = "Subject 7") +
+  theme_bw()
+model10 <- lm(rt.obj ~ 1, data = subject10)
+qq10 <- ggplot(subject10, aes(sample=residuals(model10))) +
+  stat_qq() +
+  geom_qq_line() +
+  labs(title = "Subject 10") +
+  theme_bw()  
+model12 <- lm(rt.obj ~ 1, data = subject12)
+qq12 <- ggplot(subject12, aes(sample=residuals(model12))) +
+  stat_qq() +
+  geom_qq_line() +
+  labs(title = "Subject 12") +
+  theme_bw()  
+model29 <- lm(rt.obj ~ 1, data = subject29)
+qq29 <- ggplot(subject29, aes(sample=residuals(model29))) +
+  stat_qq() +
+  geom_qq_line() +
+  labs(title = "Subject 29") +
+  theme_bw()  
+ggpubr::ggarrange(qq7, qq10, qq12, qq29)
+```
+
+
+   i. comment on these 
+We should log-transform reaction times, since we have some extreme sample values that distort the image.
+
+  ii. does a log-transformation of the response time data improve the Q-Q-plots? 
+```{r 2.1ii}
+model7log <- lm(log(rt.obj)~1, data = subject7)
+qq7log <- ggplot(subject7, aes(sample = residuals(model7log)))+
+  stat_qq()+
+  geom_qq_line()+
+  labs(title = "Subject 7 (log)")+
+  theme_bw()
+model10log <- lm(log(rt.obj)~1, data = subject10)
+qq10log <- ggplot(subject10, aes(sample = residuals(model10log)))+
+  stat_qq()+
+  geom_qq_line()+
+  labs(title = "Subject 10 (log)")+
+  theme_bw()
+model12log <- lm(log(rt.obj)~1, data = subject12)
+qq12log <- ggplot(subject12, aes(sample = residuals(model12log)))+
+  stat_qq()+
+  geom_qq_line()+
+  labs(title = "Subject 12 (log)")+
+  theme_bw()
+model29log <- lm(log(rt.obj)~1, data = subject29)
+qq29log <- ggplot(subject29, aes(sample = residuals(model29log)))+
+  stat_qq()+
+  geom_qq_line()+
+  labs(title = "Subject 29 (log)")+
+  theme_bw()
+ggpubr::ggarrange(qq7log, qq10log, qq12log, qq29log)
+```
+
+The log-transformation clearly improves the qq-plot as the points are much closer to the qq-line. However, the transformation did not fix it completely as points forsubject10 is still very off the line for instance.
+
+2) Now do a partial pooling model modelling objective response times as dependent on _task_? (set `REML=FALSE` in your `lmer`-specification)  
+```{r 2.2}
+task_model <- lmer(rt.obj ~ task + (1|subject) + (1|trial), REML=FALSE, data = experiment)
+summary(task_model)
+```
+
+
+  i. which would you include among your random effects and why? (support your choices with relevant measures, taking into account variance explained and number of parameters going into the modelling)  
+
+We include subject and trial as random effects. 
+  
+    ii. explain in your own words what your chosen models says about response times between the different tasks  
+3) Now add _pas_ and its interaction with _task_ to the fixed effects  
+    i. how many types of group intercepts (random effects) can you add without ending up with convergence issues or singular fits?  
+    ii. create a model by adding random intercepts (without modelling slopes) that results in a singular fit - then use `print(VarCorr(<your.model>), comp='Variance')` to inspect the variance vector - explain why the fit is singular (Hint: read the first paragraph under details in the help for `isSingular`)
+    iii. in your own words - how could you explain why your model would result in a singular fit?  
+    
+## Exercise 3
+
+1) Initialise a new data frame, `data.count`. _count_ should indicate the number of times they categorized their experience as _pas_ 1-4 for each _task_. I.e. the data frame would have for subject 1: for task:singles, pas1 was used # times, pas2 was used # times, pas3 was used # times and pas4 was used # times. You would then do the same for task:pairs and task:quadruplet  
+
+```{r}
+## you can start from this if you want to, but you can also make your own from scratch
+data.count <- data.frame(count = numeric(), 
+                         pas = numeric(), ## remember to make this into a factor afterwards
+                         task = numeric(), ## and this too
+                         subject = numeric()) ## and this too
+```        
+
+2) Now fit a multilevel model that models a unique "slope" for _pas_ for each _subject_ with the interaction between _pas_ and _task_ and their main effects being modelled  
+    i. which family should be used?  
+    ii. why is a slope for _pas_ not really being modelled?  
+    iii. if you get a convergence error, try another algorithm (the default is the _Nelder_Mead_) - try (_bobyqa_) for which the `dfoptim` package is needed. In `glmer`, you can add the following for the `control` argument: `glmerControl(optimizer="bobyqa")` (if you are interested, also have a look at the function `allFit`)
+    iv. when you have a converging fit - fit a model with only the main effects of _pas_ and _task_. Compare this with the model that also includes the interaction  
+    v. indicate which of the two models, you would choose and why  
+    vi. based on your chosen model - write a short report on what this says about the distribution of ratings as dependent on _pas_ and _task_  
+    vii. include a plot that shows the estimated amount of ratings for four subjects of your choosing 
+3) Finally, fit a multilevel model that models _correct_ as dependent on _task_ with a unique intercept for each _subject_  
+    i. does _task_ explain performance?  
+    ii. add _pas_ as a main effect on top of _task_ - what are the consequences of that?  
+    iii. now fit a multilevel model that models _correct_ as dependent on _pas_ with a unique intercept for each _subject_
+    iv. finally, fit a model that models the interaction between _task_ and _pas_  and their main effects  
+    v. describe in your words which model is the best in explaining the variance in accuracy  

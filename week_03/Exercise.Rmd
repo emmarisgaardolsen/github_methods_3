@@ -19,6 +19,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+pacman::p_load(tidyverse, readbulk, patchwork, lmerTest)
 ```
 
 # Exercises and objectives
@@ -35,13 +36,114 @@ REMEMBER: This assignment will be part of your final portfolio
 Go to https://osf.io/ecxsj/files/ and download the files associated with Experiment 2 (there should be 29).  
 The data is associated with Experiment 2 of the article at the following DOI https://doi.org/10.1016/j.concog.2019.03.007  
 
-1) Put the data from all subjects into a single data frame  
-2) Describe the data and construct extra variables from the existing variables  
+1) Put the data from all subjects into a single data frame 
+
+```{r}
+
+setwd("/Users/emmaolsen/OneDrive - Aarhus Universitet/Methods3/github_methods_3/week_03/experiment_2")
+
+df <- read_bulk(
+  directory = '/Users/emmaolsen/OneDrive - Aarhus Universitet/Methods3/github_methods_3/week_03/experiment_2',
+  fun = read_csv
+  )
+
+head(df)
+
+```
+
+
+2) Describe the data and construct extra variables from the existing variables 
     i. add a variable to the data frame and call it _correct_ (have it be a _logical_ variable). Assign a 1 to each row where the subject indicated the correct answer and a 0 to each row where the subject indicated the incorrect answer (__Hint:__ the variable _obj.resp_ indicates whether the subject answered "even", _e_ or "odd", _o_, and the variable _target_type_ indicates what was actually presented.
-    ii. describe what the following variables in the data frame contain, _trial.type_, _pas_, _trial_, _target.contrast_, _cue_, _task_, _target_type_, _rt.subj_, _rt.obj_, _obj.resp_, _subject_ and _correct_. (That means you can ignore the rest of the variables in your description). For each of them, indicate and argue for what `class` they should be classified into, e.g. _factor_, _numeric_ etc.  
-    iii. for the staircasing part __only__, create a plot for each subject where you plot the estimated function (on the _target.contrast_ range from 0-1) based on the fitted values of a model (use `glm`) that models _correct_ as dependent on _target.contrast_. These plots will be our _no-pooling_ model. Comment on the fits - do we have enough data to plot the logistic functions?  
-    iv. on top of those plots, add the estimated functions (on the _target.contrast_ range from 0-1) for each subject based on partial pooling model (use `glmer` from the package `lme4`) where unique intercepts and slopes for _target.contrast_ are modelled for each _subject_  
-    v. in your own words, describe how the partial pooling model allows for a better fit for each subject  
+  
+# obj.resp [i,16], o, e
+# target_type [i,11], odd, even
+# correct [i,19]
+```{r}
+ls.str(df)
+
+df$correct <- ifelse((df$obj.resp == "o" & df$target.type=="odd") | (df$obj.resp == "e" & df$target.type=="even"), 1,0)
+
+ls.str(df)               
+```
+
+    
+  ii. describe what the following variables in the data frame contain, _trial.type_, _pas_, _trial_, _target.contrast_, _cue_, _task_, _target_type_, _rt.subj_, _rt.obj_, _obj.resp_, _subject_ and _correct_. (That means you can ignore the rest of the variables in your description). For each of them, indicate and argue for what `class` they should be classified into, e.g. _factor_, _numeric_ etc.  
+
+```{r}
+ls.str(df)
+```
+
+*trial.type is a character variable but should be classified into a factor in order for them to be modelled later in the analysis. you could expect reactiontime/accuracy to systematically change dependent on specific trial types*
+```{r}
+df$trial.type <- as.factor(df$trial.type)
+```
+
+*pas is a numeric variable. It indicates whether you have seen the stimulus (the variable can take 4 different values)*
+```{r}
+df$pas <- as.factor(df$pas)
+```
+
+*trial is numeric but should be factor*
+```{r}
+df$trial <- as.factor(df$trial)
+```
+
+*target.contrast is the contrast level of the stimulus. it is numeric and should stay numeric*
+
+*cue *:
+```{r}
+unique(df$cue)
+```
+
+*task:
+```{r}
+
+```
+
+*target_type:
+```{r}
+
+```
+
+*rt.subj:
+```{r}
+
+```
+
+*rt.obj:
+```{r}
+
+```
+
+*obj.resp:
+```{r}
+
+```
+
+*subject: participantID,
+```{r}
+
+```
+
+*correct:
+
+```{r}
+ls.str(df)
+```
+
+   iii. for the staircasing part __only__, create a plot for each subject where you plot the estimated function (on the _target.contrast_ range from 0-1) based on the fitted values of a model (use `glm`) that models _correct_ as dependent on _target.contrast_. These plots will be our _no-pooling_ model. Comment on the fits - do we have enough data to plot the logistic functions?  
+
+```{r}
+
+```
+
+  iv. on top of those plots, add the estimated functions (on the _target.contrast_ range from 0-1) for each subject based on partial pooling model (use `glmer` from the package `lme4`) where unique intercepts and slopes for _target.contrast_ are modelled for each _subject_  
+  
+```{r}
+
+```
+
+  v. in your own words, describe how the partial pooling model allows for a better fit for each subject  
 
 ## Exercise 2
 
