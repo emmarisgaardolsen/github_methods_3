@@ -497,26 +497,14 @@ vii. include a plot that shows the estimated amount of ratings for four subjects
 ```{r}
 # Using the same 4 respondents as previously (3, 19, 12, 25)
 
-exp_count4 <- data_count %>% 
-  filter(subject == '4' | subject == '3' | subject == '19' | subject == '25')
-
-plot_final <- list()
-for (i in 1:length(exp_count4)){
-  
-  data.count$fitted <- fitted.values(countmodel1)
-  plot_temp <- data.count %>% 
-    filter(subject == exp_count4[i]) %>% 
-    ggplot(aes(pas, fitted, fill = pas)) +
-    geom_bar(stat = "identity") +
-    ggtitle(paste(c('Estimated amount of ratings for Subject', exp_count4[i]), collapse=', ' )) + ylim(0,300) +
-    ylab("Estimated count") +
-    xlab("Perceptual Awareness Scale Rating")
-    
-  plot_final[[i]] <- plot_temp
-}
-
-
-plot_final
+data.count_four <- data_count %>% 
+  filter(subject == "003" | subject == "019" | subject == "012" | subject == "025")
+m_four <- glmer(count ~ pas * task + (pas|subject), data = data.count_four, family = poisson)
+data.count_four %>% 
+    ggplot() +
+      geom_point(aes(x = pas, y = fitted(m_four), color = "Estimated")) + 
+      geom_point(aes(x = pas, y = count, color = "Observed")) +
+      facet_wrap( ~ subject)
   
 ```
 
@@ -530,12 +518,14 @@ summary(correct_model1)
 
    i. does _task_ explain performance?  
    
-   Yes, task seems to explain performance as single tasks significantly differs from task pair (p < .05). The negative coefficients indicate that an increase in task complexity results in a decrease in the amount of correct answers. 
+  
+   Yes, task significantly explains performance (as measured by correctness) for all 3 task levels (p < .05 in all cases). In the quadruplets task, the performance is significantly worse as compared to the task pairs, but subjects' performance in the singles task is better as compared to pairs task. This would be expected as an increase in task complexity would be expected to result in a decrease in the amount of correct answers. 
+
 
   ii. add _pas_ as a main effect on top of _task_ - what are the consequences of that?  
   
 ```{r}
-finalmodel2 <- glmer(correct ~ task + pas + (1 | subject), data = exp, family = 'binomial')
+finalmodel2 <- glmer(correct ~ task + pas + (1 | subject), data = df_experiment, family = 'binomial')
 ```
 
 Task looses is significance in explaining performance. Pas seems to be a better predictor (it significantly predicts *correct*). This makes sense as perceptual awareness theoretically must be believed to pressupose giving the correct answer (above the threshold that would be expected by chance alone.)
@@ -544,14 +534,14 @@ Task looses is significance in explaining performance. Pas seems to be a better 
   iii. now fit a multilevel model that models _correct_ as dependent on _pas_ with a unique intercept for each _subject_
   
 ```{r}
-finalmodel3 <- glmer(correct ~ pas + (1 | subject), data = exp, family = 'binomial')
+finalmodel3 <- glmer(correct ~ pas + (1 | subject), data = df_experiment, family = 'binomial')
 ```
   
   iv. finally, fit a model that models the interaction between _task_ and _pas_  and their main effects  
 
 ```{r}
 
-finalmodel4 <- glmer(correct ~ task*pas + (1 | subject), data = exp, family = 'binomial')
+finalmodel4 <- glmer(correct ~ task*pas + (1 | subject), data = df_experiment, family = 'binomial')
 
 ```
 
@@ -560,12 +550,12 @@ finalmodel4 <- glmer(correct ~ task*pas + (1 | subject), data = exp, family = 'b
   
 ```{r}
 rownames <- c("M1", "M2", "M3", "M4")
-AIC <- c(AIC(finalmodel1), AIC(finalmodel2), AIC(finalmodel3),AIC(finalmodel4))
-resvar <- c(sum(residuals(finalmodel1)^2),sum(residuals(finalmodel2)^2),sum(residuals(finalmodel3)^2),sum(residuals(finalmodel4)^2)) #residual variance
-res_sd<- c(sqrt((sum(residuals(finalmodel1))^2/length(residuals(finalmodel1))-2)),sqrt((sum(residuals(countmodel2))^2/length(residuals(countmodel2))-2)),sqrt((sum(residuals(finalmodel3))^2/length(residuals(finalmodel3))-2)),sqrt((sum(residuals(finalmodel3))^2/length(residuals(finalmodel3))-2)),sqrt((sum(residuals(finalmodel4))^2/length(residuals(finalmodel4))-2))) # residual standard deviation 
+AIC <- c(AIC(finalmodel), AIC(finalmodel2), AIC(finalmodel3),AIC(finalmodel4))
+resvar <- c(sum(residuals(finalmodel)^2),sum(residuals(finalmodel2)^2),sum(residuals(finalmodel3)^2),sum(residuals(finalmodel4)^2)) #residual variance
+res_sd<- c(sqrt((sum(residuals(finalmodel))^2/length(residuals(finalmodel))-2)),sqrt((sum(residuals(finalmodel2))^2/length(residuals(finalmodel2))-2)),sqrt((sum(residuals(finalmodel3))^2/length(residuals(finalmodel3))-2)),sqrt((sum(residuals(finalmodel3))^2/length(residuals(finalmodel3))-2)),sqrt((sum(residuals(finalmodel4))^2/length(residuals(finalmodel4))-2))) # residual standard deviation 
 
 as_tibble(cbind(rownames, AIC, resvar, res_sd))
+anova(finalmodel, finalmodel2, finalmodel3,finalmodel4)
 
 ```
 
-The last the models almost has the same AIC values, residual variance, and residual standard deviation, suggesting thatm, as compared to *task*, *pas* is a better predictor. Nonetheless, the model with the interaction term would be easier to justify by theory, as one would expect perceptual awareness rating to interact with the complexity of task (for reasons also elaborated earlier)
