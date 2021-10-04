@@ -1,0 +1,69 @@
+---
+title: "Extra plots"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# First exercise 
+
+Complete pooling
+```{r}
+# x = target contrast, y = fitted values on y, 
+ggplot(data = df_staircase)+
+  geom_point(aes(x = target.contrast, y = fitted(m_complete), color = subject))+
+  geom_line(aes(target.contrast, fitted(m_complete))) +
+  facet_wrap(.~subject)+
+  labs(tag="Plot1")
+
+# x = target.contrast,y = as.numeric(as.character(correct)) on y
+ggplot(df_staircase, (aes(x = target.contrast, y = as.numeric(as.character(correct)),colour=subject)))+ 
+  geom_point()+
+  #geom_point(aes(target.contrast, fitted_values))+
+  geom_line(aes(target.contrast, fitted_compl), color = "blue") +
+  facet_wrap(.~subject)+ 
+  labs(title = "Complete Pooling", y = "Correct",
+      tag = "Plot 2") +
+  theme_bw()
+
+
+# x = target.contrast, y = as.character(correct)
+ggplot(df_staircase, (aes(x = target.contrast, y = as.character(correct), colour=subject)))+ 
+  geom_point()+
+  geom_line(aes(target.contrast, fitted_compl)) +
+  facet_wrap(.~subject)+ 
+  labs(title = "Complete Pooling model: correct~target.contrast",
+       subtitle = "Estimated function based on the fitted values", 
+       tag = "Plot 3", 
+       x= "Target contrast", 
+       y = "Correct") +
+  theme_bw()
+```
+
+
+```{r}
+#  --------------- No pooling  --------------- 
+
+m_nopool <- glm(correct~target.contrast*subject, family=binomial(link=logit), data=df_staircase)
+fitted_nopool <- fitted(m_nopool)
+df_staircase$fitted_nopool <- fitted_nopool
+
+# one plot 
+ggplot(data = df_staircase)+
+  geom_point(aes(x = target.contrast, y = fitted(m_nopool), color = subject))+
+  geom_line(aes(target.contrast, fitted(m_nopool))) +
+  facet_wrap(.~subject)
+
+# another one
+ggplot(df_staircase, (aes(x = target.contrast, y = correct,colour=subject)))+ 
+  geom_point()+
+  geom_line(aes(target.contrast, fitted_nopool), color = "red") +
+  facet_wrap(.~subject)+ 
+  labs(title = "No Pooling model: correct ~ target.contrast*subject") +
+  theme_bw()
+
+```
+
+
