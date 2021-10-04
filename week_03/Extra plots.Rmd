@@ -44,6 +44,25 @@ ggplot(df_staircase, (aes(x = target.contrast, y = as.character(correct), colour
 
 
 ```{r}
+#  --------------- Complete pooling  --------------- 
+m_complete <- glm(correct~target.contrast, family=binomial(link=logit), data=df_staircase)
+fitted_compl <- fitted(m_complete)
+df_staircase$fitted_compl <- fitted_compl
+
+plot1 <- ggplot(df_staircase, aes(target.contrast, fitted_compl, color = subject)) + 
+    geom_point()+
+    facet_wrap(~subject) +
+    theme_minimal()+
+    labs(title = "Subplot of fitted values for each subject",
+         tag = "Plot 1",
+         x = "Target contrast",
+         y = "Fitted values")
+
+plot1
+```
+
+
+```{r}
 #  --------------- No pooling  --------------- 
 
 m_nopool <- glm(correct~target.contrast*subject, family=binomial(link=logit), data=df_staircase)
