@@ -350,7 +350,8 @@ partial5 <- lmerTest::lmer(log(rt.obj) ~ task + (1 + task | subject), data = df_
 
 partial_model <- c("m1", "m2", "m3", "m4", "m5")
 AIC <- c(AIC(partial1), AIC(partial2), AIC(partial3), AIC(partial4), AIC(partial5))
-sigma - c(sigma(partial1),sigma(partial2),sigma(partial3), sigma(partial4), sigma(partial5))
+sigma <- c(sigma(partial1),sigma(partial2),sigma(partial3), sigma(partial4), sigma(partial5))
+
 
 # calculating pseudo R-squared for mixed effects model (R2m = marginal R2, provides the variance explained only by fixed effects. R2c = conditional R2, provides the variance explained by the entire model, i.e., both fixed effects and random effects)
 
@@ -513,7 +514,7 @@ data.count_four %>%
 
 ```{r}
 finalmodel<- glmer(correct ~ task + (1|subject), family = "binomial", data = df_experiment)
-summary(correct_model1)
+summary(finalmodel)
 ```
 
    i. does _task_ explain performance?  
