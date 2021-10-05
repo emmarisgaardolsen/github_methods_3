@@ -309,7 +309,6 @@ stat_qq_line(colour = "red") +
 labs(x = "Theoretical quantiles", y = "Sample quantiles") + ggtitle("Subj 3: QQ-plot residuals (log)") +
 theme_bw()
 
-
 m19log <- lm(log(rt.obj)~1, data = sub19)
 qq19log <- ggplot(sub19, aes(sample = residuals(m19log))) + stat_qq() +
 stat_qq_line(colour = "red") +
@@ -486,10 +485,27 @@ I would choose the model that includes the interaction. Partly because of the lo
  
 ```{r}
 summary(countmodel1)
+
+data_count$task <- relevel(data_count$task, ref = "singles")
+
+ggplot(data_count, aes(x = pas, y = count)) +
+  geom_point(aes(pas, count), color = "blue") +
+  facet_wrap(~ task) +
+  theme_bw()
+
+bp <- ggplot(data_count, aes(x=pas, y=count, group=pas)) + 
+  geom_boxplot(aes(fill=pas))
+bp
+
+bp + facet_grid(task ~ .)
+
+# bp + facet_grid(pas ~ task, margins=TRUE)
+
 ```
- 
-  
+
 A general linear mixed effect model was fitted with a poisson link function to investigate the distribution of ratings (*count*) as dependent on *pas* and *task*. In other words, the model predicted our outcome variable *count* based on the fixed effects of *pas* and *task* as well as their interaction term. For random effects, *pas* was modelled as a random slope for each *subject*, with *subject* modeled as random intercept. The direction of the slope (whether it is positive or negative) is highly dependent on the interaction between pas and task.
+
+When inspecting the plots above, it seems as if the distribution of ratings across the 3 tasks (i.e, pairs, quadruplet, singles) are quite similar (with PAS 3 being the least frequent rating across all taks). Nonetheless, it seems as if the singles task had a higher count of PAS ratings 4 (i.e., "Clear experience") which one would expect as this is the least difficult task. From just eyeballing the boxplot, it becomes more difficult to notice the differences between pairs and quadruplets tasks.
 
 
 
