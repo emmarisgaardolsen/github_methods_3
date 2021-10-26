@@ -1,0 +1,619 @@
+---
+title: "practical_exercise_5, Methods 3, 2021, autumn semester"
+author: 'Emma Olsen'
+date: "27/10 - 2021"
+output: pdf_document
+---
+
+<style type="text/css">
+  body{
+  font-size: 14pt;
+}
+</style>
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+pacman::p_load(tidyverse,dplyr, data.table, vroom, ggplot2, readbulk, lme4, rstanarm, MuMIn, lmerTest, lme4,multcomp, interactions, sjPlot, sjmisc)
+
+
+setwd("/Users/emmaolsen/OneDrive - Aarhus Universitet/Methods3/github_methods_3/week_05/experiment_1")
+
+```
+
+# Exercises and objectives
+The objectives of the exercises of this assignment are based on: https://doi.org/10.1016/j.concog.2019.03.007  
+  
+4) Download and organise the data from experiment 1  
+5) Use log-likelihood ratio tests to evaluate logistic regression models  
+6) Test linear hypotheses  
+7) Estimate psychometric functions for the Perceptual Awareness Scale and evaluate them  
+
+REMEMBER: In your report, make sure to include code that can reproduce the answers requested in the exercises below (__MAKE A KNITTED VERSION__)  
+REMEMBER: This is part 2 of Assignment 2 and will be part of your final portfolio
+
+
+# EXERCISE 4 - Download and organise the data from experiment 1
+
+Go to https://osf.io/ecxsj/files/ and download the files associated with Experiment 1 (there should be 29).  
+The data is associated with Experiment 1 of the article at the following DOI https://doi.org/10.1016/j.concog.2019.03.007  
+  
+1) Put the data from all subjects into a single data frame - note that some of the subjects do not have the _seed_ variable. For these subjects, add this variable and make in _NA_ for all observations. (The _seed_ variable will not be part of the analysis and is not an experimental variable)  
+
+```{r, Loading data}
+
+df <- read_bulk(
+  directory = '/Users/emmaolsen/OneDrive - Aarhus Universitet/Methods3/github_methods_3/week_05/experiment_1',
+  fun = read_csv
+  )
+
+```
+
+```{r}
+is_empty(df$seed) # 
+unique(df$seed)
+```
+
+  i. Factorise the variables that need factorising  
+    
+```{r}
+df$trial.type <- as.factor(df$trial.type)
+df$pas <- as.factor(df$pas)
+df$trial <- as.factor(df$trial)
+df$cue <- as.factor(df$cue)
+df$task <- as.factor(df$task)
+df$target.type <- as.factor(df$target.type)
+df$obj.resp <- as.factor(df$obj.resp)
+df$subject <- as.factor(df$subject)
+df$target.frames <- as.integer(df$target.frames)
+
+ls.str(df)
+
+```
+
+  ii. Remove the practice trials from the dataset (see the _trial.type_ variable)  
+
+```{r}
+
+df <- df %>% filter(trial.type=="experiment")
+
+```
+
+  iii. Create a _correct_ variable  
+
+```{r}
+df$correct <- ifelse((df$obj.resp == "o" & df$target.type=="odd") | (df$obj.resp == "e" & df$target.type=="even"), 1,0)
+
+```
+
+  iv. Describe how the _target.contrast_ and _target.frames_ variables differ compared to the data from part 1 of this assignment  
+
+*_target.contrast_: in experiment 1, the experimenters didn't adjust the target contrast to match the threshold of each individual. Therefore, the value of this variable is held constant at 0.1 for all subjects. They did, however, add staircasing trials in experiment 2, which is why we had different values of target.contrast for each subject in part 1 of this assignment (reflecting experiment 2)*
+
+*_target.frame_: target.frame is an expression of SOA (stimulus onset asynchrony) - and takes value from 1-6 accordingly. As for _target.frames_, in experiment two, all participants saw the target frame for 3 frames, whereas in experiment 1, participants saw the target for 1-6 frames, equally distributed over participants. (1 Hz is 1 frame. A computer updates 60 Hz/sec. 1 frame equals 11.8 miliseconds)*
+
+
+```{r}
+unique(df$target.frames)
+```
+
+
+# EXERCISE 5 - Use log-likelihood ratio tests to evaluate logistic regression models
+
+1) Do logistic regression - _correct_ as the dependent variable and _target.frames_ as the independent variable. (Make sure that you understand what _target.frames_ encode). Create two models - a complete pooled model and a partial-pooling model. The partial-pooling model should include a subject-specific intercept.  
+
+
+```{r}
+# Complete pooling model
+m_complete <- glm(correct~target.frames, data = df, family=binomial(link=logit))
+
+# Partial pooling model; modeling both an average and each level of the subjects 
+m_partial <- glmer(correct ~ target.frames + (1|subject),data=df,family=binomial(link=logit)) 
+
+```
+
+*So we wanna predict the probability of occurence of an event based on several predictor variables*
+
+  i. the likelihood-function for logistic regression is: $L(p)={\displaystyle\prod_{i=1}^Np^{y_i}(1-p)^{(1-y_i)}}$ (Remember the probability mass function for the Bernoulli Distribution). Create a function that calculates the likelihood.  
+  
+```{r}
+ls.str(df)
+
+# Likelihood function 
+likelihood_function <- function(model, y) {
+  p <- fitted(model)
+  y <-  as.numeric(as.character(y))
+  return(prod(p^y*(1-p)^(1-y)))
+}
+
+```
+  
+
+  ii. the log-likelihood-function for logistic regression is: $l(p) = {\displaystyle\sum_{i=1}^N}[y_i\ln{p}+(1-y_i)\ln{(1-p)}$. Create a function that calculates the log-likelihood  
+  
+```{r}
+# Log-likelihood function 1
+ls.str(df)
+
+mylog_lik <- function(model, y){
+  p <- fitted(model)
+  y <- as.numeric(as.character(y))
+  return(sum(y * log(p)+(1-y)*log(1-p)))
+}
+
+
+```
+
+  iii. apply both functions to the complete pooling model you just created. Make sure that the log-likelihood matches what is returned from the _logLik_ function for the complete pooled model. Does the likelihood-function return a value that is surprising? Why is the log-likelihood preferable when working with computers with limited precision? 
+
+```{r}
+
+# Applying functions to models
+likelihood_function(m_complete,df$correct)
+mylog_lik(m_complete,df$correct) # -10865.25
+logLik(m_complete) # -10865.25
+
+```
+
+*The likelihood-function returns 0 which is not surprising. It represents the probability of observing the exact same values in the exact same order giving our model - this is very unlikely giving the many data points*
+
+*The log-likelihood function _logLik_ returns the same value (-10865.25) as the function I made did*
+
+*The log-likelihood is preferable when working with computers with limited precision as it gives a higher number. It gives a value potentially really really close to zero with a lot of decimals being 0 - a computer with low precision would just output 0, not showing any nuances.*
+
+  iv. now show that the log-likelihood is a little off when applied to the partial pooling model - (the likelihood function is different for the multilevel function - see section 2.1 of https://www.researchgate.net/profile/Douglas-Bates/publication/2753537_Computational_Methods_for_Multilevel_Modelling/links/00b4953b4108d73427000000/Computational-Methods-for-Multilevel-Modelling.pdf if you are interested)  
+  
+
+```{r}
+
+mylog_lik(m_partial, df$correct) # -10565.53
+logLik(m_partial) # -10622.03
+
+```
+
+*The two values differ slightly, showing that the log-likelihood is a little off.*  
+  
+2) Use log-likelihood ratio tests to argue for the addition of predictor variables, start from the null model, `glm(correct ~ 1, 'binomial', data)`, then add subject-level intercepts, then add a group-level effect of _target.frames_ and finally add subject-level slopes for _target.frames_. Also assess whether or not a correlation between the subject-level slopes and the subject-level intercepts should be included.
+
+```{r}
+
+null <- glm(correct ~ 1, family=binomial(link='logit'), df)
+
+subject_lev <- glmer(correct ~ 1 + (1|subject), family=binomial(link='logit'), df)
+
+group_lev <- glmer(correct ~ target.frames + (1|subject), family=binomial(link='logit'), df)
+
+groupsub_lev <- glmer(correct ~ target.frames + (1+target.frames|subject), family=binomial(link='logit'), df)
+
+cormodel <- glmer(correct ~ target.frames + (1+target.frames||subject), family=binomial(link='logit'), df)
+
+anova(subject_lev,group_lev, groupsub_lev, cormodel,null)
+
+```
+
+  i. write a short methods section and a results section where you indicate which model you chose and the statistics relevant for that choice. Include a plot of the estimated group-level function with `xlim=c(0, 8)` that includes the estimated subject-specific functions.
+  
+  ii. also include in the results section whether the fit didn't look good for any of the subjects. If so, identify those subjects in the report, and judge (no statistical test) whether their performance (accuracy) differed from that of the other subjects. Was their performance better than chance? (Use a statistical test this time) (50 %)  
+
+
+*Methods section: 4 different generalized linear mixed effects models were modeled, all of them with _correct_ as target variable. the null model was also made:*
+
+$null = \text{correct} \sim 1$
+$subjectlevel = \text{correct} \sim 1 + (1|\text{subject})$
+$grouplevel =\text{correct} \sim \text{target.frames} + (1|\text{subject})$
+$grouplevelnocor = \text{correct} \sim \text{target.frames} + (1+\text{target.frames}||\text{subject})$
+
+*A likelihood ratio test was used to assess which predictor variables should be included in the model (comparing to the null model). In the log likelihood test, the null model was compared to three other models; one that included subject-level intercepts, one with a group-level effect of _target.frames_ and finally add subject-level slopes for _target.frames_. It was also assessed whether or not a correlation between the subject-level slopes and the subject-level intercepts should be included.*
+
+```{r}
+# Plot of the estimated group-level function with `xlim=c(0, 8)` that includes the estimated subject-specific functions.'
+
+plot1 <- df %>% 
+  ggplot() +
+  geom_smooth(aes(x = target.frames, y = fitted(groupsub_lev), color = "Partial Pooled model")) +
+   geom_smooth(aes(x = target.frames, y = fitted(null), color = "Complete Pooled model")) +
+   facet_wrap( ~ subject) + 
+   labs(title = "Plot 1: Estimated group-level function pr. subject") +
+   labs(x = "x = target.frames (1:6)", y = "y = estimated functions (subject level)")
+
+plot1
+
+# Making df subset with subject 24 only 
+sub24 <- df %>% 
+  filter(subject=="024")
+
+# Making a one-sided t-test to assess if sub24 performed better than chance
+t.test(as.numeric(as.character(sub24$correct)), mu=0.5, alternative = "greater") # er mean performance significantly different from 0.5 in a positive direction?  
+
+```
+
+
+*Plot 1 indicates that the fit looks very bad for subject nr. 24.This person seems to above below chance (the graph of the partial pooling model lies below the null model). To asses if the subject performed significantly worse than chance (which is seems when inspecting the plot), we made a one-sided t-test.l The t-test slowed that the performance of subject 24 significantly differs from the mean (in the negative direction, i.e. the performance being significantly below chance*, $t(873) = 4.026, p < .005$
+
+*Results section: The likelihood ratio test indicates that the model with  subject-level intercepts and a group-level effect of _target.frames was the better fit (${X}^2= 22.926, p = < .001$). This model has the lowes AIC value ($20908$) as the lowest deviance ($20898$) of all of the 5 models as well.*  
+
+
+3) Now add _pas_ to the group-level effects - if a log-likelihood ratio test justifies this, also add the interaction between _pas_ and _target.frames_ and check whether a log-likelihood ratio test justifies this  
+
+```{r}
+
+#adding pas as a fixed effect
+newmodel <- glmer(correct ~ target.frames+pas + (1+target.frames|subject), data=df, family=binomial(link = 'logit'), control = glmerControl(optimizer="bobyqa")) #adding pas as a fixed effect
+
+model6 <- glmer(correct ~ target.frames*pas+ (1+target.frames|subject), data=df, family=binomial(link = 'logit'), control = glmerControl(optimizer="bobyqa")) # adding pas and interaction between pas and target.frames. using an optimizer (bobyqa)
+
+anova(newmodel,model6)
+
+```
+
+*A log-likelihood ratio test justified adding the interaction between _pas_ and _target.frames_.*
+
+  ii. plot the estimated group-level functions over `xlim=c(0, 8)` for each of the four PAS-ratings - add this plot to your report (see: 5.2.i) and add a description of your chosen model. Describe how _pas_ affects accuracy together with target duration if at all. Also comment on the estimated functions' behaviour at target.frame=0 - is that behaviour reasonable? 
+  
+```{r}
+
+plot2 <- ggplot(df, aes(x = target.frames, y = as.numeric(as.character(correct)), color = pas))+
+  geom_smooth(method = "glm", se = FALSE, method.args = list(family = "binomial"), size = 0.7) +
+  xlim(min = 0, max = 8)+
+  labs(y = "correct") + 
+  labs(title = "Plot 2") +
+  theme_bw()
+
+interactions::interact_plot(model = model6, pred = "target.frames", modx = "pas") # visualizing the effects of pas and targetframes and their interactions
+```
+
+
+*Per increment of _target.frame_, accuracy increases across all 4 PAS ratings. It also seems that a lower PAS rating is associated with a lower accuracy across all values of _target.frames_. The only exception is that at target.frames = 1, the baseline accuracy is actually slightly higher for PAS1 ratings than PAS2 ratings. This makes sense as one would expect longer duration of stimuli to result in an increase of accuracy.*
+
+# EXERCISE 6 - Test linear hypotheses
+
+In this section we are going to test different hypotheses. We assume that we have already proved that more objective evidence (longer duration of stimuli) is sufficient to increase accuracy in and of itself and that more subjective evidence (higher PAS ratings) is also sufficient to increase accuracy in and of itself.  
+
+We want to test a hypothesis for each of the three neighbouring differences in PAS, i.e. the difference between 2 and 1, the difference between 3 and 2 and the difference between 4 and 3. More specifically, we want to test the hypothesis that accuracy increases faster with objective evidence if subjective evidence is higher at the same time, i.e. we want to test for an interaction.  
+
+1) Fit a model based on the following formula: `correct ~ pas * target.frames + (target.frames | subject))`
+
+```{r}
+# same model as earlier 
+model6 <- glmer(correct ~ target.frames*pas+ (1+target.frames|subject), data=df, family=binomial(link = 'logit'), control = glmerControl(optimizer="bobyqa"))
+
+```
+
+  i. First, use `summary` (yes, you are allowed to!) to argue that accuracy increases faster with objective evidence for PAS 2 than for PAS 1. 
+
+```{r}
+summary(model6)
+
+
+# TO SUPPORT THE SUMMARY FUNCTION
+# creating a table showing the percentile increase in accuracy for every fixed effect and interactions
+
+estimates <- c(coef(summary(model6))[1:8]) # extract coefficients
+increase_in_prob <- c(invlogit(estimates)) # invert logik 
+estimates_text <- c("intercept", "pas2", "pas3", "pas4", "target.frames", "target.frames:pas2", "target.frames:pas3", "target.frames:pas4")
+probability_table <- as_tibble(cbind(estimates_text, increase_in_prob));print(probability_table) 
+
+
+# 2 DIFFERENT INTERACTION PLOTS SHOWING THE SAME THING
+theme_set(theme_sjplot())
+plot_model(model6, type = "pred", terms = c("target.frames", "pas"))
+
+interactions::interact_plot(model = model6, pred = "target.frames", modx = "pas") 
+
+```
+
+  
+*Both the summary output and our interaction plots indicate that accuracy increases faster with objective evidence for PAS 2 than for PAS 1. This supports our hypothesis that accuracy increases faster with objective evidence if subjecvtive evidence (PAS) is higher at the same time. The summary output shows a positive and significantinteraction term (target.frames:pas2) of 0.44718, p < .001.*
+  
+  
+2) `summary` won't allow you to test whether accuracy increases faster with objective evidence for PAS 3 than for PAS 2 (unless you use `relevel`, which you are not allowed to in this exercise). Instead, we'll be using the function `glht` from the `multcomp` package
+
+  i. To redo the test in 6.1.i, you can create a _contrast_ vector. This vector will have the length of the number of estimated group-level effects and any specific contrast you can think of can be specified using this. For redoing the test from 6.1.i, the code snippet below will do
+
+For reference, below is a snippet from the summary output:
+target.frms -0.811                                          
+pas2        -0.461  0.305                                   
+pas3        -0.307  0.207  0.248                            
+pas4        -0.174  0.123  0.121  0.091                     
+trgt.frms:2  0.481 -0.428 -0.874 -0.245 -0.124              
+trgt.frms:3  0.392 -0.358 -0.278 -0.891 -0.111  0.370       
+trgt.frms:4  0.275 -0.260 -0.162 -0.121 -0.918  0.225  0.200
+
+```{r}
+
+# testing if accuracy does increase faster with objective evidence for "pas 2" than for "pas 1"
+contrast.vector1 <- matrix(c(0, 0, 0, 0, 0, 1, 0, 0), nrow=1)
+gh1 <- glht(model6, contrast.vector1)
+print(summary(gh1))
+invlogit(coef(summary(gh1))[1]) # probability of observing an increase in accuracy is 60.99695 % going from pas 1 to pas 2
+
+```
+  
+  ii. Now test the hypothesis that accuracy increases faster with objective evidence for PAS 3 than for PAS 2.
+
+```{r}
+
+# testing if accuracy does increase faster with objective evidence for "pas 3" than for "pas 2"
+contrast.vector2 <- matrix(c(0, 0, 0, 0, 0, -1, 1, 0), nrow=1)
+gh2 <- glht(model6, contrast.vector2)
+print(summary(gh2))
+invlogit(coef(summary(gh2))[1]) # probability of observing an increase in accuracy 57,48%  from pas 2 to pas 3
+
+
+```
+
+  iii. Also test the hypothesis that accuracy increases faster with objective evidence for PAS 4 than for PAS 3
+  
+```{r}
+
+# testing if accuracy does increase faster with objective evidence for "pas 4" than for "pas 3"
+contrast.vector3 <- matrix(c(0, 0, 0, 0, 0, 0, -1, 1), nrow=1)
+gh3 <- glht(model6, contrast.vector3)
+print(summary(gh3))
+invlogit(coef(summary(gh3))[1]) # probability of observing an increase in accuracy is 50,26%
+
+```
+
+  
+3) Finally, test that whether the difference between PAS 2 and 1 (tested in 6.1.i) is greater than the difference between PAS 4 and 3 (tested in 6.2.iii)
+
+The difference between PAS 2 and 1 (tested in 6.1.i) is 0.6099695, which is greater than the difference between PAS 4 and 3 (tested in 6.2.iii) which is 0.5026524. Our test of the hypothesis that accuracy increases faster with objective evidence for PAS 4 than for PAS 3 was also not significant. 
+
+
+### Snippet for 6.2.i
+```{r, eval=FALSE}
+## testing whether PAS 2 is different from PAS 1
+contrast.vector <- matrix(c(0, 0, 0, 0, 0, 1, 0, 0), nrow=1) # 1 represents target.frames:pas2 from summary output
+gh <- glht(model6, contrast.vector)
+print(summary(gh)) # significant
+
+## as another example, we could also test whether there is a difference in
+## intercepts between PAS 2 and PAS 3
+contrast.vector <- matrix(c(0, -1, 1, 0, 0, 0, 0, 0), nrow=1)
+gh <- glht(pas.intact.tf.ranslopeint.with.corr, contrast.vector)
+print(summary(gh))
+```
+
+# EXERCISE 7 - Estimate psychometric functions for the Perceptual Awareness Scale and evaluate them  
+
+We saw in 5.3 that the estimated functions went below chance at a target duration of 0 frames (0 ms). This does not seem reasonable, so we will be trying a different approach for fitting here.  
+
+We will fit the following function that results in a sigmoid, $f(x) = a + \frac {b - a} {1 + e^{\frac {c-x} {d}}}$  
+
+It has four parameters:
+_a_, which can be interpreted as the minimum accuracy level
+_b_, which can be interpreted as the maximum accuracy level
+_c_, which can be interpreted as the so-called inflexion point, i.e. where the derivative of the sigmoid reaches its maximum and 
+_d_, which can be interpreted as the steepness at the inflexion point. (When _d_ goes towards infinity, the slope goes towards a straight line, and when it goes towards 0, the slope goes towards a step function).  
+  
+We can define a function of a residual sum of squares as below
+
+```{r}
+
+RSS <- function(dataset, par)
+{
+    ## "dataset" should be a data.frame containing the variables x (target.frames)
+    ## and y (correct)
+    
+    ## "par" are our four parameters (a numeric vector) 
+    a <- par[1]
+    b <- par[2]
+    c <- par[3]
+    d <- par[4]
+    
+    x <- dataset$x
+    y <- dataset$y
+    y.hat <- a+((b-a)/(1+exp((c-x)/d)))  #sigmoid funtion
+    RSS <- sum((y - y.hat)^2)
+    return(RSS)
+}
+
+```
+
+1) Now, we will fit the sigmoid for the four PAS ratings for Subject 7
+  
+  i. use the function `optim`. It returns a list that among other things contains the four estimated parameters. You should set the following arguments:  
+
+  `par`: you can set _c_ and _d_ as 1. Find good choices for _a_ and _b_ yourself (and argue why they are appropriate) 
+    _a_ can be interpreted as the minimum accuracy level
+    _b_ can be interpreted as the maximum accuracy level
+  `fn`: which function to minimise?  *In our case RSS.*
+  `data`: the data frame with _x_, _target.frames_, and _y_, _correct_ in it. *In our case df*.
+  `method`: 'L-BFGS-B'  
+  `lower`: lower bounds for the four parameters, (the lowest value they can take), you can set _c_ and _d_ as `-Inf`.Find good    choices for _a_ and _b_ yourself (and argue why they are appropriate)  
+  `upper`: upper bounds for the four parameters, (the highest value they can take) can set _c_ and _d_ as `Inf`. Find good      choices for _a_ and _b_ yourself (and argue why they are appropriate)  
+  
+*First, I define the above arguments*:
+```{r}
+
+set.seed(1)
+
+# Create subset dataframe
+
+sub7 <- df %>% 
+  dplyr::filter(subject == "007") %>% 
+  dplyr::select(target.frames, correct, pas) %>% 
+  dplyr::rename(x = target.frames, y = correct)
+
+
+par <- c(0.5, 1, 1, 1)
+
+optim7 <- optim(data = sub7, fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0.5, 0.5, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
+
+
+#Estimating the four parameters and making a tibble
+parameters <- optim(data= sub7,par = par, fn= RSS, method= 'L-BFGS-B',lower =lower, upper =upper)
+parameters_text<- c("a", "b", "c", "d")
+parameters_values <- c(parameters[[1]][1], parameters[[1]][2], parameters[[1]][3], parameters[[1]][4])
+parameter_tibble <- as.tibble(cbind(parameters_text, as.numeric(parameters_values)));print(parameter_tibble)
+
+
+sigfun7 <- function(x) {
+  optim7$par[1] + ((optim7$par[2]-optim7$par[1])/(1+exp(1)^((optim7$par[3]-x)/optim7$par[4])))}
+
+plot4 <- ggplot() +
+  geom_point(aes(x = c(0:6), y = sigfun7 (0:6))) +
+  geom_smooth(aes(x = c(0:6), y = sigfun7 (0:6)), se = FALSE) + 
+  labs(title = "Plot 4: Estimated fits for PAS ratings",
+       x = "Target.Frames",
+       y = "Estimated probability of correct given target frames") +
+  theme_bw()
+
+plot4
+```
+
+
+  ii. Plot the fits for the PAS ratings on a single plot (for subject 7) `xlim=c(0, 8)`
+
+```{r}
+# First, i make subset dfs for subject 7 dependent on pas
+
+sub7$x <- as.numeric(sub7$x)
+sub7$y <- as.numeric(sub7$y)
+sub7$pas <- as.factor(sub7$pas)
+
+# subject 7 pas 1
+s7p1 <- sub7 %>% 
+  dplyr::filter(pas==1) 
+
+optim7_1 <- optim(data = s7p1, fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0.5, 0.5, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
+fit7_1 <- optim7_1[[1]][1]+((optim7_1[[1]][2]-optim7_1[[1]][1])/(1+exp((optim7_1[[1]][3]-s7p1$x)/optim7_1[[1]][4])))
+
+
+
+# subject 7 pas 2
+s7p2 <- sub7 %>% 
+  dplyr::filter(pas==2)
+
+optim7_2 <- optim(data = s7p2, fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0.5, 0.5, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
+fit7_2<- optim7_2[[1]][1]+((optim7_2[[1]][2]-optim7_2[[1]][1])/(1+exp((optim7_2[[1]][3]-s7p2$x)/optim7_2[[1]][4])))
+
+
+# subject 7 pas 3
+s7p3 <- sub7 %>% 
+  dplyr::filter(pas==3)
+
+optim7_3 <- optim(data = s7p3, fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0.5, 0.5, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
+fit7_3<- optim7_3[[1]][1]+((optim7_3[[1]][2]-optim7_3[[1]][1])/(1+exp((optim7_3[[1]][3]-s7p3$x)/optim7_3[[1]][4])))
+
+# subject 7 pas 4
+s7p4 <- sub7 %>% 
+  dplyr::filter(pas==4)
+
+optim7_4 <- optim(data = s7p4, fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0.5, 0.5, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
+fit7_4 <- optim7_4[[1]][1]+((optim7_4[[1]][2]-optim7_4[[1]][1])/(1+exp((optim7_4[[1]][3]-s7p4$x)/optim7_4[[1]][4])))
+
+
+sub7plot <- ggplot()+
+  geom_smooth((aes(x = s7p1$x, y = fit7_1,color=s7p1$pas)))+
+  geom_smooth((aes(x = s7p2$x, y = fit7_2, color=s7p2$pas)))+
+  geom_smooth((aes(x = s7p3$x, y = fit7_3, color=s7p3$pas)))+
+  geom_smooth((aes(x = s7p4$x, y = fit7_4, color=s7p4$pas)))+
+  labs(title = "Plot5 : fits for the PAS ratings")+
+  labs(x = "targetframes", y = "fitted probability of being correct")
+
+
+```
+
+  
+  iii. Create a similar plot for the PAS ratings on a single plot (for subject 7), but this time based on the model from 6.1 `xlim=c(0, 8)`   
+
+```{r}
+
+model6_new <- glm(y ~ x*pas, data=sub7, family=binomial(link = 'logit'))
+
+sub7_model6new <- ggplot()+
+    geom_smooth((aes(x = sub7$x, y = fitted.values(model6_new),color=sub7$pas)))
+
+pacman::p:load(gridExtra)
+grid.arrange(sub7plot,sub7_model6new)
+
+
+```
+  
+  iv. Comment on the differences between the fits - mention some advantages and disadvantages of each way  
+
+```{r}
+grid.arrange(plot4,sub7plot)
+```
+
+Plot 4 (flot sigmoid func)
+
+
+
+2) Finally, estimate the parameters for all subjects and each of their four PAS ratings. Then plot the estimated function at the group-level by taking the mean for each of the four parameters, _a_, _b_, _c_ and _d_ across subjects. A function should be estimated for each PAS-rating (it should look somewhat similar to Fig. 3 from the article:  https://doi.org/10.1016/j.concog.2019.03.007)
+
+```{r}
+par <- c(0.5, 1, 1, 1)
+fn <- RSS
+method = 'L-BFGS-B'
+lower = c(0.5, 0.5, -Inf, -Inf)
+upper = c(1, 1, Inf, Inf)
+loop.df <- df %>% 
+  mutate(x = target.frames, 
+         y = correct, 
+         subject = as.numeric(subject),
+         pas = as.numeric(pas))
+n <- 0
+output <- data.frame(subject=character(),
+                 pas=integer(),
+                 a=integer(),
+                 b=integer(),
+                 c=integer(),
+                 d=integer())
+for (i in 1:29) {
+  
+  for (n in 1:4) {
+  subject.df <- loop.df %>% 
+    filter(subject == i & pas == n)
+  
+  optimated <- optim(par = par, 
+                     data = subject.df,  
+                     fn = fn, 
+                     method = method, 
+                     lower = lower, 
+                     upper =  upper)
+  
+  optimated.output <- data.frame(subject=i,
+                 pas=n,
+                 a=optimated$par[1],
+                 b=optimated$par[2],
+                 c=optimated$par[3],
+                 d=optimated$par[4])
+  
+  output <- rbind(output, optimated.output)
+}
+}
+
+
+summarised.output <- output %>% 
+  group_by(pas) %>% 
+  summarise(mean.a=mean(a), mean.b=mean(b), mean.c=mean(c), mean.d=mean(d))
+
+
+# The formula for the sigmoid, with the optimized parameters that we found before
+mean.fit.pas1 <- function(x) summarised.output$mean.a[1] + ((summarised.output$mean.b[1]-summarised.output$mean.a[1]) / (1+exp((summarised.output$mean.c[1]-x)/(summarised.output$mean.d[1]))))
+
+mean.fit.pas2 <- function(x) summarised.output$mean.a[2] + ((summarised.output$mean.b[2]-summarised.output$mean.a[2]) / (2+exp((summarised.output$mean.c[2]-x)/(summarised.output$mean.d[2]))))
+
+mean.fit.pas3 <- function(x) summarised.output$mean.a[3] + ((summarised.output$mean.b[3]-summarised.output$mean.a[3]) / (3+exp((summarised.output$mean.c[3]-x)/(summarised.output$mean.d[3]))))
+
+mean.fit.pas4 <- function(x) summarised.output$mean.a[4] + ((summarised.output$mean.b[4]-summarised.output$mean.a[4]) / (4+exp((summarised.output$mean.c[4]-x)/(summarised.output$mean.d[4]))))
+
+
+ggplot() +
+  xlim(0, 8) +
+  ylim(0, 1) +
+  geom_function(aes(color = "pas1"), fun = mean.fit.pas1) +
+  geom_function(aes(color = "pas2"), fun = mean.fit.pas2) +
+  geom_function(aes(color = "pas3"), fun = mean.fit.pas3) +
+  geom_function(aes(color = "pas4"), fun = mean.fit.pas4) +
+  labs(x = "target.frames", y = "Likelihood of being correct", title = "Title") +
+  theme_minimal() 
+
+
+```
+
+    i. compare with the figure you made in 5.3.ii and comment on the differences between the fits - mention some advantages and disadvantages of both.
+    
