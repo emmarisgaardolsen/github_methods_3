@@ -83,6 +83,53 @@ ggplot(df_staircase, (aes(x = target.contrast, y = correct,colour=subject)))+
   labs(title = "No Pooling model: correct ~ target.contrast*subject") +
   theme_bw()
 
+########## THE SAME PLOTS AS THE ONES I CHOOSE (BUT DIFFERENT LAYOUT)
+
+# another one
+ggplot(df_staircase, (aes(x = target.contrast, y = as.numeric(as.character(correct)))))+ 
+  geom_point()+
+  geom_line(aes(target.contrast, fitted_nopool), color = "orange") +
+  facet_wrap(.~subject)+ 
+  labs(title = "No Pooling", y = "Correct") +
+  theme_minimal()
+
+
+ggplot(df_staircase, (aes(x = target.contrast, y = as.numeric(as.character(correct)),colour=subject)))+ 
+  geom_point()+
+  geom_line(aes(target.contrast, fitted_nopool), color = "red") +
+  facet_wrap(.~subject)+ 
+  labs(title = "No Pooling model: correct ~ target.contrast*subject") +
+  theme_bw()
+
+```
+
+
+Plotting on top
+```{r}
+
+# partiaal
+ggplot(df_staircase, (aes(x = target.contrast, y = correct,colour=subject)))+ 
+  geom_point()+
+  geom_line(aes(target.contrast, fitted_partialtest), color = "red") +
+  facet_wrap(.~subject)+ 
+  labs(title = "Partial Pooling") +
+  theme_bw()
+
+ggplot(data = df_staircase)+
+  geom_point(aes(x = target.contrast, y = fitted(m_nopool), color = "no pooling"))+
+  geom_point(aes(x=target.contrast, y=fitted(m_partial),color= "partial pooling"))+
+  facet_wrap(.~subject)
+
+
+ggplot(df_staircase, (aes(x = target.contrast, y = correct,colour=subject)))+ 
+  geom_point(aes(x = target.contrast, y = fitted(m_complete), color = "complete pooling"))+
+  geom_point(aes(x=target.contrast, y=fitted(m_partial),color= "partial pooling"))+
+  geom_line(aes(target.contrast, fitted(m_complete)), color = "red") +
+  geom_line(aes(target.contrast, fitted(m_partial)), color = "turquoise1") +
+  facet_wrap(.~subject)+ 
+  labs(title = "Plotting on top") +
+  theme_bw()
+
 ```
 
 

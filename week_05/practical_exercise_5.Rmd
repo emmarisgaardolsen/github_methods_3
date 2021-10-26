@@ -33,19 +33,81 @@ Go to https://osf.io/ecxsj/files/ and download the files associated with Experim
 The data is associated with Experiment 1 of the article at the following DOI https://doi.org/10.1016/j.concog.2019.03.007  
   
 1) Put the data from all subjects into a single data frame - note that some of the subjects do not have the _seed_ variable. For these subjects, add this variable and make in _NA_ for all observations. (The _seed_ variable will not be part of the analysis and is not an experimental variable)  
-    i. Factorise the variables that need factorising  
-    ii. Remove the practice trials from the dataset (see the _trial.type_ variable)  
-    iii. Create a _correct_ variable  
-    iv. Describe how the _target.contrast_ and _target.frames_ variables differ compared to the data from part 1 of this assignment  
+
+```{r}
+library(tidyverse,dplyr, data.table, vroom, ggplot2, readbulk, lme4, rstanarm, MuMIn, lmerTest, lme4)
+
+setwd("/Users/emmaolsen/OneDrive - Aarhus Universitet/Methods3/github_methods_3/week_05/experiment_1")
+
+df <- read_bulk(
+  directory = '/Users/emmaolsen/OneDrive - Aarhus Universitet/Methods3/github_methods_3/week_05/experiment_1',
+  fun = read_csv
+  )
+
+glimpse(df)
+
+```
+
+  i. Factorise the variables that need factorising  
+    
+```{r}
+ls.str(df)
+
+df$trial.type <- as.factor(df$trial.type)
+df$pas <- as.factor(df$pas)
+df$trial <- as.factor(df$trial)
+df$cue <- as.factor(df$cue)
+df$task <- as.factor(df$task)
+df$obj.resp <- as.factor(df$obj.resp)
+df$subject <- as.factor(df$subject)
+
+```
+
+  ii. Remove the practice trials from the dataset (see the _trial.type_ variable)  
+
+```{r}
+
+df <- df %>% filter(trial.type=="experiment")
+
+```
+
+  iii. Create a _correct_ variable  
+
+```{r}
+df$correct <- ifelse((df$obj.resp == "o" & df$target.type=="odd") | (df$obj.resp == "e" & df$target.type=="even"), 1,0)
+
+df$correct <- as.factor(df$correct)
+
+```
+
+  iv. Describe how the _target.contrast_ and _target.frames_ variables differ compared to the data from part 1 of this assignment  
+
+*_target.contrast_: in experiment 1, the experimenters didn't adjust the target contrast to match the threshold of each individual. Therefore, the value of this variable is 0.1 for all subjects. They did, however, add staircasing trials in experiment 2, which is why we had different values of target.contrast for each subject in part 1 of this assignment (which reflected Experiment 2 from the paper)*
+
+*_target.frame_: target.frame is an expression of SOA (stimulus onset asynchrony) - and takes value from 1-6 accordingly. As for _target.frames_, in experiment two, all participants saw the target frame for 3 frames, whereas in experiment 1, participants saw the target for 1-6 frames, equally distributed over participants. (1 Hz is 1 frame. A computer updates 60 Hz/sec. 1 frame equals 11.8 miliseconds)*
+
+```{r}
+unique(df$target.frames)
+```
 
 
 # EXERCISE 5 - Use log-likelihood ratio tests to evaluate logistic regression models
 
-1) Do logistic regression - _correct_ as the dependent variable and _target.frames_ as the independent variable. (Make sure that you understand what _target.frames_ encode). Create two models - a pooled model and a partial-pooling model. The partial-pooling model should include a subject-specific intercept.  
-    i. the likelihood-function for logistic regression is: $L(p)={\displaystyle\prod_{i=1}^Np^{y_i}(1-p)^{(1-y_i)}}$ (Remember the probability mass function for the Bernoulli Distribution). Create a function that calculates the likelihood.  
-    ii. the log-likelihood-function for logistic regression is: $l(p) = {\displaystyle\sum_{i=1}^N}[y_i\ln{p}+(1-y_i)\ln{(1-p)}$. Create a function that calculates the log-likelihood  
-    iii. apply both functions to the pooling model you just created. Make sure that the log-likelihood matches what is returned from the _logLik_ function for the pooled model. Does the likelihood-function return a value that is surprising? Why is the log-likelihood preferable when working with computers with limited precision?  
-    iv. now show that the log-likelihood is a little off when applied to the partial pooling model - (the likelihood function is different for the multilevel function - see section 2.1 of https://www.researchgate.net/profile/Douglas-Bates/publication/2753537_Computational_Methods_for_Multilevel_Modelling/links/00b4953b4108d73427000000/Computational-Methods-for-Multilevel-Modelling.pdf if you are interested)  
+1) Do logistic regression - _correct_ as the dependent variable and _target.frames_ as the independent variable. (Make sure that you understand what _target.frames_ encode). Create two models - a complete pooled model and a partial-pooling model. The partial-pooling model should include a subject-specific intercept.  
+
+```{r}
+
+m_partial <- glmer(correct~target.frames+(1|subject), family=binomial(link=logit),data=df) # modeling both an average and each level of the subjects 
+
+
+```
+
+  i. the likelihood-function for logistic regression is: $L(p)={\displaystyle\prod_{i=1}^Np^{y_i}(1-p)^{(1-y_i)}}$ (Remember the probability mass function for the Bernoulli Distribution). Create a function that calculates the likelihood.  
+  ii. the log-likelihood-function for logistic regression is: $l(p) = {\displaystyle\sum_{i=1}^N}[y_i\ln{p}+(1-y_i)\ln{(1-p)}$. Create a function that calculates the log-likelihood  
+  iii. apply both functions to the pooling model you just created. Make sure that the log-likelihood matches what is returned from the _logLik_ function for the pooled model. Does the likelihood-function return a value that is surprising? Why is the log-likelihood preferable when working with computers with limited precision?  
+  iv. now show that the log-likelihood is a little off when applied to the partial pooling model - (the likelihood function is different for the multilevel function - see section 2.1 of https://www.researchgate.net/profile/Douglas-Bates/publication/2753537_Computational_Methods_for_Multilevel_Modelling/links/00b4953b4108d73427000000/Computational-Methods-for-Multilevel-Modelling.pdf if you are interested)  
+  
+  
 2) Use log-likelihood ratio tests to argue for the addition of predictor variables, start from the null model, `glm(correct ~ 1, 'binomial', data)`, then add subject-level intercepts, then add a group-level effect of _target.frames_ and finally add subject-level slopes for _target.frames_. Also assess whether or not a correlation between the subject-level slopes and the subject-level intercepts should be included.
     i. write a short methods section and a results section where you indicate which model you chose and the statistics relevant for that choice. Include a plot of the estimated group-level function with `xlim=c(0, 8)` that includes the estimated subject-specific functions.
     ii. also include in the results section whether the fit didn't look good for any of the subjects. If so, identify those subjects in the report, and judge (no statistical test) whether their performance (accuracy) differed from that of the other subjects. Was their performance better than chance? (Use a statistical test this time) (50 %)  

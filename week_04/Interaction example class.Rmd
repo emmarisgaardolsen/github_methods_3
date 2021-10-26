@@ -1,0 +1,93 @@
+---
+title: "Example from class"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+
+# install.packages("devtools")
+devtools::install_github("thomasp85/patchwork")
+
+library(ggplot2)
+library(patchwork)
+
+p3 <- ggplot(mtcars) + geom_smooth(aes(disp, qsec))
+p4 <- ggplot(mtcars) + geom_bar(aes(carb))
+
+(p1 | p2 | p3) /
+      p4
+
+```
+
+```{r}
+
+library(tidyverse)
+ library(ggplot2)
+data("mtcars")
+
+library(patchwork)
+
+devtools::install_github("thomasp85/patchwork")
+
+p3 <- ggplot(mtcars) + geom_smooth(aes(disp, qsec))
+p4 <- ggplot(mtcars) + geom_bar(aes(carb))
+
+(p1 | p2 | p3) /
+      p4
+
+(p1 | p2 | p3)
+
+ 
+mtcars$gear <- as.factor(mtcars$gear)
+model <- lm(mpg ~ wt * gear, data = mtcars)
+
+model
+
+```
+
+*(Intercept)*: 28.395
+Our intercept for a car with a weight of 0 and 3 gears (because that is our first level)
+
+*wt*: -3.157 
+when we increase weight by one unit, we decrease mpg by -3.1157 for g3.
+
+*gear4*: main effect, what we have to add to intercept (combine this with intercept will give us a car with 4 gears and weight zero)
+If you want the slope for group 4, you add wt:gear4 and wt. -> 
+
+*gear5*: 14.168 
+
+*wt:gear4*: -3.707 
+interaction!
+how much u should adjust the slope. how it differs (add 3.707 with 3.157)
+
+*wt:gear5*: -4.889 
+
+
+If you want the slope for group 4, you add wt:Gear and wt.
+If you want intercept for gear4, you add intercept with gear4.
+
+
+# Below 
+
+```{r}
+
+mtcars$int <- interaction(mtcars$gear, mtcars$wt) # estimate. you create a new variable of all possible combinations of the levels.
+
+```
+ 
+
+# Interaction plot
+
+```{r}
+
+class(mtcars$gear)
+interaction.plot(model)
+```
+
+
+
