@@ -1,8 +1,10 @@
 ---
 title: "practical_exercise_5, Methods 3, 2021, autumn semester"
-author: 'Emma Olsen'
+author: "Emma Olsen"
 date: "27/10 - 2021"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
 ---
 
 <style type="text/css">
@@ -50,7 +52,7 @@ df <- read_bulk(
 
 ```
 
-```{r}
+```{r, include = FALSE}
 is_empty(df$seed) # 
 unique(df$seed)
 ```
@@ -58,6 +60,7 @@ unique(df$seed)
   i. Factorise the variables that need factorising  
     
 ```{r}
+
 df$trial.type <- as.factor(df$trial.type)
 df$pas <- as.factor(df$pas)
 df$trial <- as.factor(df$trial)
@@ -84,7 +87,6 @@ df <- df %>% filter(trial.type=="experiment")
 
 ```{r}
 df$correct <- ifelse((df$obj.resp == "o" & df$target.type=="odd") | (df$obj.resp == "e" & df$target.type=="even"), 1,0)
-
 ```
 
   iv. Describe how the _target.contrast_ and _target.frames_ variables differ compared to the data from part 1 of this assignment  
@@ -113,13 +115,12 @@ m_partial <- glmer(correct ~ target.frames + (1|subject),data=df,family=binomial
 
 ```
 
-*So we wanna predict the probability of occurence of an event based on several predictor variables*
+*So we wanna predict the probability of occurrence of an event based on several predictor variables*
 
   i. the likelihood-function for logistic regression is: $L(p)={\displaystyle\prod_{i=1}^Np^{y_i}(1-p)^{(1-y_i)}}$ (Remember the probability mass function for the Bernoulli Distribution). Create a function that calculates the likelihood.  
-  
-```{r}
-ls.str(df)
 
+  
+```{r, include = FALSE}
 # Likelihood function 
 likelihood_function <- function(model, y) {
   p <- fitted(model)
@@ -129,12 +130,11 @@ likelihood_function <- function(model, y) {
 
 ```
   
-
   ii. the log-likelihood-function for logistic regression is: $l(p) = {\displaystyle\sum_{i=1}^N}[y_i\ln{p}+(1-y_i)\ln{(1-p)}$. Create a function that calculates the log-likelihood  
   
-```{r}
+```{r, include = FALSE}
+
 # Log-likelihood function 1
-ls.str(df)
 
 mylog_lik <- function(model, y){
   p <- fitted(model)
@@ -142,25 +142,25 @@ mylog_lik <- function(model, y){
   return(sum(y * log(p)+(1-y)*log(1-p)))
 }
 
-
 ```
 
   iii. apply both functions to the complete pooling model you just created. Make sure that the log-likelihood matches what is returned from the _logLik_ function for the complete pooled model. Does the likelihood-function return a value that is surprising? Why is the log-likelihood preferable when working with computers with limited precision? 
 
 ```{r}
-
 # Applying functions to models
-likelihood_function(m_complete,df$correct)
+
+likelihood_function(m_complete,df$correct) # 0
 mylog_lik(m_complete,df$correct) # -10865.25
+
 logLik(m_complete) # -10865.25
 
 ```
 
-*The likelihood-function returns 0 which is not surprising. It represents the probability of observing the exact same values in the exact same order giving our model - this is very unlikely giving the many data points*
+*The likelihood-function returns 0 which is not surprising. It represents the probability of observing the exact same values in the exact same order giving our model - this is very unlikely giving the many data points we have*
 
-*The log-likelihood function _logLik_ returns the same value (-10865.25) as the function I made did*
+*The log-likelihood function _logLik_ returns the same value (-10865.25) as my mylog_lik function outputted*
 
-*The log-likelihood is preferable when working with computers with limited precision as it gives a higher number. It gives a value potentially really really close to zero with a lot of decimals being 0 - a computer with low precision would just output 0, not showing any nuances.*
+*The log-likelihood is preferable when working with computers with limited precision as it gives a higher number. It gives a value potentially really close to zero with a lot of decimals being 0 - a computer with low precision would just output 0, not showing any nuances.*
 
   iv. now show that the log-likelihood is a little off when applied to the partial pooling model - (the likelihood function is different for the multilevel function - see section 2.1 of https://www.researchgate.net/profile/Douglas-Bates/publication/2753537_Computational_Methods_for_Multilevel_Modelling/links/00b4953b4108d73427000000/Computational-Methods-for-Multilevel-Modelling.pdf if you are interested)  
   
@@ -172,99 +172,167 @@ logLik(m_partial) # -10622.03
 
 ```
 
-*The two values differ slightly, showing that the log-likelihood is a little off.*  
+*As can be seen in the output above, the two values differ slightly, showing that the log-likelihood is a little off.*  
   
 2) Use log-likelihood ratio tests to argue for the addition of predictor variables, start from the null model, `glm(correct ~ 1, 'binomial', data)`, then add subject-level intercepts, then add a group-level effect of _target.frames_ and finally add subject-level slopes for _target.frames_. Also assess whether or not a correlation between the subject-level slopes and the subject-level intercepts should be included.
 
-```{r}
+```{r, include = FALSE}
 
+# Null model
 null <- glm(correct ~ 1, family=binomial(link='logit'), df)
 
+# Subject-level intercepts
 subject_lev <- glmer(correct ~ 1 + (1|subject), family=binomial(link='logit'), df)
 
+# Group-level effect of target.frames
 group_lev <- glmer(correct ~ target.frames + (1|subject), family=binomial(link='logit'), df)
 
+# With correlation between the subject-level slopes and the subject-level intercepts 
 groupsub_lev <- glmer(correct ~ target.frames + (1+target.frames|subject), family=binomial(link='logit'), df)
 
-cormodel <- glmer(correct ~ target.frames + (1+target.frames||subject), family=binomial(link='logit'), df)
-
-anova(subject_lev,group_lev, groupsub_lev, cormodel,null)
+# Without correlation between the subject-level slopes and the subject-level intercepts
+nocormodel <- glmer(correct ~ target.frames + (1+target.frames||subject), family=binomial(link='logit'), df)
 
 ```
+
+```{r}
+
+anova(subject_lev,group_lev, groupsub_lev, nocormodel, null)
+
+```
+
+*It seems that each model gradually performs significantly better when adding predictors. The model that includes a correlation between the single-level slopes and the subject-level intercepts (groupsub_lev) has the lowest p-value (p<.001) and performs better in the anova() model across all parameters*
 
   i. write a short methods section and a results section where you indicate which model you chose and the statistics relevant for that choice. Include a plot of the estimated group-level function with `xlim=c(0, 8)` that includes the estimated subject-specific functions.
   
   ii. also include in the results section whether the fit didn't look good for any of the subjects. If so, identify those subjects in the report, and judge (no statistical test) whether their performance (accuracy) differed from that of the other subjects. Was their performance better than chance? (Use a statistical test this time) (50 %)  
 
+*Methods section: 4 different generalized linear mixed effects models (GLMM) were modeled, all of them with _correct_ as target variable. the null model was also made:*
 
-*Methods section: 4 different generalized linear mixed effects models were modeled, all of them with _correct_ as target variable. the null model was also made:*
+$\text{correct} \sim 1$
+$\text{correct} \sim 1 + (1|\text{subject})$
+$\text{correct} \sim \text{target.frames} + (1|\text{subject})$
+$\text{correct} \sim \text{target.frames} + (1+\text{target.frames}||\text{subject})$
 
-$null = \text{correct} \sim 1$
-$subjectlevel = \text{correct} \sim 1 + (1|\text{subject})$
-$grouplevel =\text{correct} \sim \text{target.frames} + (1|\text{subject})$
-$grouplevelnocor = \text{correct} \sim \text{target.frames} + (1+\text{target.frames}||\text{subject})$
+_Method_: *A likelihood ratio test was used to assess which predictor variables should be included in the model (comparing to the null model). In the log likelihood test, the null model was compared to three other models; one that included subject-level intercepts, one with a group-level effect of _target.frames_ and finally add subject-level slopes for _target.frames_. It was also assessed whether or not a correlation between the subject-level slopes and the subject-level intercepts should be included.*
 
-*A likelihood ratio test was used to assess which predictor variables should be included in the model (comparing to the null model). In the log likelihood test, the null model was compared to three other models; one that included subject-level intercepts, one with a group-level effect of _target.frames_ and finally add subject-level slopes for _target.frames_. It was also assessed whether or not a correlation between the subject-level slopes and the subject-level intercepts should be included.*
+```{r, echo = FALSE}
+Model <- c("null", "subject_lev", "group_lev", "groupsub_lev", "nocormodel")
+
+Formula <- c("correct ~ 1", "correct ~ 1 + (1 | subject)", "(correct ~ target.frames + (1 | subject)", "(correct ~ target.frames + (target.frames | subject)","(correct ~ target.frames + (target.frames || subject)")
+
+logLik_values <- anova(subject_lev,group_lev, groupsub_lev, nocormodel, null)$logLik
+as_tibble(cbind(Model, Formula, logLik_values))
+```
+
+_Results_: *The likelihood ratio test indicates that the model with subject-level intercepts and a group-level effect of _target.frames was the better fit* (${X}^2= 22.926, p = < .001$).
+*This model has the lowest AIC value* ($20908$) *as well as the lowest deviance* ($20898$) *of all of the 5 models as well.*  
 
 ```{r}
 # Plot of the estimated group-level function with `xlim=c(0, 8)` that includes the estimated subject-specific functions.'
 
 plot1 <- df %>% 
   ggplot() +
-  geom_smooth(aes(x = target.frames, y = fitted(groupsub_lev), color = "Partial Pooled model")) +
-   geom_smooth(aes(x = target.frames, y = fitted(null), color = "Complete Pooled model")) +
+  geom_smooth(aes(x = target.frames, y = fitted(groupsub_lev), color = "Partial Pooling model")) +
+   geom_smooth(aes(x = target.frames, y = fitted(null), color = "Complete Pooling model")) +
    facet_wrap( ~ subject) + 
    labs(title = "Plot 1: Estimated group-level function pr. subject") +
    labs(x = "x = target.frames (1:6)", y = "y = estimated functions (subject level)")
 
-plot1
+```
 
+```{r}
+fitted_values <- fitted(groupsub_lev) # extract fitted values for geom_line
+df2 <- df %>% 
+  dplyr::select(-subject) # create data without subject to override facet_wrap in plot
+
+df2$fitted_values <- fitted_values
+
+plot2 <- ggplot(df, aes(x = target.frames, y = as.numeric(as.character(correct))))+
+  geom_point(aes(y=as.numeric(as.character(correct))), color = "green", alpha = 0.05)+ # add alpha to be able to better access how many dots are clumped together 
+  geom_line(aes(target.frames, fitted_values), color = "blue") +
+  #geom_line(data = data2, aes(target.frames, fitted_values), color = "red") +
+  geom_smooth(data = df2, method = "glm", se = FALSE, method.args = list(family = "binomial"), color = "orange", size = 0.7) +
+  facet_wrap(.~subject)+
+  xlim(min = 0, max = 8)+
+  labs(title = "Plot 2: Estimated group-level function pr. subject", y = "correct") + 
+  theme_bw()
+
+```
+
+```{r}
+library(gridExtra)
+grid.arrange(plot1,plot2)
+```
+
+*Both plot 1 and 2 has target.frames on the x-axis*.
+
+*Plot 1 shows the estimated group-level function compared to the null model. It indicates that the fit looks very bad for subject nr. 24.This person seems to above below chance (the graph of the partial pooling model lies below the null model).* 
+
+*In plot 2, the orange curve represents the estimate group.level functions, whereas the blue curve represents the estimated subject-specific functions. The green dots represent responses (they are layered on top of each other according to the corresponding target.frame from 1-6, which explains the different shades of green. Plot 2 indicates the same trend, i.e. that the fit generally suits most subjects fine but that subject-specific function for subject 24 deviates a lot from the estimated group-level function. The plot for subject 24 indicates that this participants had more incorrect trials at the higher target frames as compared to the rest of the subjects (as indicated by a darker green color of the dots at target frame 5-6 and accuracy at 0), which might explain the bad fit*
+
+*To asses if the subject performed significantly worse than chance (which is seems when inspecting the plot), I will make a one-sided t-test testing against mu = 0.5.*
+
+
+```{r}
 # Making df subset with subject 24 only 
 sub24 <- df %>% 
   filter(subject=="024")
 
 # Making a one-sided t-test to assess if sub24 performed better than chance
-t.test(as.numeric(as.character(sub24$correct)), mu=0.5, alternative = "greater") # er mean performance significantly different from 0.5 in a positive direction?  
+t.test(as.numeric(as.character(sub24$correct)), mu=0.5, alternative = "greater") # testing whether mean performance is significantly different from 0.5 in a positive direction?  
 
 ```
 
-
-*Plot 1 indicates that the fit looks very bad for subject nr. 24.This person seems to above below chance (the graph of the partial pooling model lies below the null model). To asses if the subject performed significantly worse than chance (which is seems when inspecting the plot), we made a one-sided t-test.l The t-test slowed that the performance of subject 24 significantly differs from the mean (in the negative direction, i.e. the performance being significantly below chance*, $t(873) = 4.026, p < .005$
-
-*Results section: The likelihood ratio test indicates that the model with  subject-level intercepts and a group-level effect of _target.frames was the better fit (${X}^2= 22.926, p = < .001$). This model has the lowes AIC value ($20908$) as the lowest deviance ($20898$) of all of the 5 models as well.*  
+*The one-sample t-test showed that the performance of subject 24 (who was found to have a mean accuracy of 56.755) significantly differs from pure change (mu = 0.5, 50%) in the negative direction, i.e. the performance being significantly below chance*, $t(873) = 4.026, p < .001$
 
 
 3) Now add _pas_ to the group-level effects - if a log-likelihood ratio test justifies this, also add the interaction between _pas_ and _target.frames_ and check whether a log-likelihood ratio test justifies this  
 
 ```{r}
 
-#adding pas as a fixed effect
+# adding pas to the group-level effects
 newmodel <- glmer(correct ~ target.frames+pas + (1+target.frames|subject), data=df, family=binomial(link = 'logit'), control = glmerControl(optimizer="bobyqa")) #adding pas as a fixed effect
 
-model6 <- glmer(correct ~ target.frames*pas+ (1+target.frames|subject), data=df, family=binomial(link = 'logit'), control = glmerControl(optimizer="bobyqa")) # adding pas and interaction between pas and target.frames. using an optimizer (bobyqa)
+# adding pas and interaction with target.frames to the group-level effects
+model6 <- glmer(correct ~ target.frames*pas+ (1+target.frames|subject), data=df, family=binomial(link = 'logit'), control = glmerControl(optimizer="bobyqa")) # using an optimizer (bobyqa)
 
-anova(newmodel,model6)
+
+logLiks <- tibble("Model" = c("groupsub_lev", "newmodel", "model6"), "Log-likelihood" = c(logLik(groupsub_lev), logLik(newmodel), logLik(model6)))
+
+logLiks
 
 ```
 
-*A log-likelihood ratio test justified adding the interaction between _pas_ and _target.frames_.*
+*A log-likelihood ratio test justified adding the  _pas_ and _target.frames_ as well as their interaction to the the group-level effects as it increases the log-likelihood (gives a smaller negative number).*
 
   ii. plot the estimated group-level functions over `xlim=c(0, 8)` for each of the four PAS-ratings - add this plot to your report (see: 5.2.i) and add a description of your chosen model. Describe how _pas_ affects accuracy together with target duration if at all. Also comment on the estimated functions' behaviour at target.frame=0 - is that behaviour reasonable? 
   
 ```{r}
 
-plot2 <- ggplot(df, aes(x = target.frames, y = as.numeric(as.character(correct)), color = pas))+
+plot3 <- ggplot(df, aes(x = target.frames, y = as.numeric(as.character(correct)), color = pas))+
   geom_smooth(method = "glm", se = FALSE, method.args = list(family = "binomial"), size = 0.7) +
   xlim(min = 0, max = 8)+
   labs(y = "correct") + 
-  labs(title = "Plot 2") +
+  labs(title = "Plot 3: Estimated group-lvl func for each PAS-rating",subtitle="Showing interaction effect") +
   theme_bw()
+
+plot3
 
 interactions::interact_plot(model = model6, pred = "target.frames", modx = "pas") # visualizing the effects of pas and targetframes and their interactions
 ```
 
+*Per increment of _target.frames_, accuracy increases across all 4 _pas_  ratings except from _pas_  = 1 that barely changes when _target.frames_ changes. This makes sense as a _pas_ rating of 1 refers to having no impression of the stimulus with all answers seen as mere guesses, and a change in _target.frames_ would therefore not be expected to affect accuracy.* 
 
-*Per increment of _target.frame_, accuracy increases across all 4 PAS ratings. It also seems that a lower PAS rating is associated with a lower accuracy across all values of _target.frames_. The only exception is that at target.frames = 1, the baseline accuracy is actually slightly higher for PAS1 ratings than PAS2 ratings. This makes sense as one would expect longer duration of stimuli to result in an increase of accuracy.*
+*The steepness of the curves indicate that for _pas_ = 2 and _pas_  = 3, _target.frames_ seems to influence accuracy a lot. This makes sense as they both refer to perceptual experiences associated with uncertainty of the content perceived*.
+
+*_pas_ = 4 consistently has a higher accuracy, regardless of _target.frames_.*
+*This makes sense as one would expect having a non-amnbiguous experience of the simulus and no doubts in one's answer (which is was a _pas_ rating of 4 represents) to result in a higher accuracy regardless of _target.frames_.*
+
+*The plot reveals that at target.frames = 1, the baseline accuracy is actually slightly higher for _pas_ = 1 ratings than _pas_ = 2 ratings.* 
+
+*Across all _pas_ ratings, the associated function is undefined at _target.frames_ = 0. hat This behavior is reasonable as the _target.frames_ variable could not take a value of 0 frames.*
+
 
 # EXERCISE 6 - Test linear hypotheses
 
@@ -284,7 +352,6 @@ model6 <- glmer(correct ~ target.frames*pas+ (1+target.frames|subject), data=df,
 
 ```{r}
 summary(model6)
-
 
 # TO SUPPORT THE SUMMARY FUNCTION
 # creating a table showing the percentile increase in accuracy for every fixed effect and interactions
@@ -409,6 +476,14 @@ RSS <- function(dataset, par)
     return(RSS)
 }
 
+# used later
+
+y_hat_func <- function(a,b,c,d,x) {
+  y.hat <- a+((b-a)/(1+exp((c-x)/d)))
+  return(y.hat)
+  }
+
+
 ```
 
 1) Now, we will fit the sigmoid for the four PAS ratings for Subject 7
@@ -425,21 +500,22 @@ RSS <- function(dataset, par)
   `upper`: upper bounds for the four parameters, (the highest value they can take) can set _c_ and _d_ as `Inf`. Find good      choices for _a_ and _b_ yourself (and argue why they are appropriate)  
   
 *First, I define the above arguments*:
+
 ```{r}
+
 
 set.seed(1)
 
 # Create subset dataframe
-
 sub7 <- df %>% 
   dplyr::filter(subject == "007") %>% 
   dplyr::select(target.frames, correct, pas) %>% 
   dplyr::rename(x = target.frames, y = correct)
 
-
+lower <- c(0.5, 0.5, -Inf, -Inf)
+upper <- c(1, 1, Inf, Inf)
 par <- c(0.5, 1, 1, 1)
-
-optim7 <- optim(data = sub7, fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0.5, 0.5, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
+optim7 <- optim(data = sub7, fn = RSS, par = par, method = 'L-BFGS-B', lower = lower, upper = upper)
 
 
 #Estimating the four parameters and making a tibble
@@ -450,7 +526,8 @@ parameter_tibble <- as.tibble(cbind(parameters_text, as.numeric(parameters_value
 
 
 sigfun7 <- function(x) {
-  optim7$par[1] + ((optim7$par[2]-optim7$par[1])/(1+exp(1)^((optim7$par[3]-x)/optim7$par[4])))}
+  optim7$par[1] + ((optim7$par[2]-optim7$par[1])/(1+exp((optim7$par[3]-x)/optim7$par[4])))}
+
 
 plot4 <- ggplot() +
   geom_point(aes(x = c(0:6), y = sigfun7 (0:6))) +
@@ -461,6 +538,36 @@ plot4 <- ggplot() +
   theme_bw()
 
 plot4
+```
+
+```{r}
+
+#making pas numeric to be usable in optim:
+sub7$x <- as.numeric(sub7$x)
+
+#finding the a, b, c and d values estimated by optim which are to be used in the plot:
+optim7pas <- optim(data = sub7, fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0, 0, -Inf, -Inf), upper = c(1,1,Inf, Inf))
+
+#generating a list of x-values, that can be used to make the new y's
+x_list_p <- seq(1,4, 0.1) #now it is 4, since 4 pas ratings
+#estimating the new y values based on x, the function and a, b, c and d:
+y_list_p <- y_hat_func(optim7pas$par[1], optim7pas$par[2], optim7pas$par[3], optim7pas$par[4], x_list_p)
+
+data_list_p <- data.frame(x_list_p, y_list_p)
+
+pas_plot5 <- data_list_p %>% 
+  ggplot() +
+  geom_point(aes(x_list_p, y_list_p)) +
+  geom_smooth(aes(x_list_p, y_list_p, se = FALSE, colour = "red"))+
+  ylim(0,1) +
+  labs(title = "Sigmoid over the fitted pas ratings",
+       y = "Estimated Correct Answers",
+       x = "Pas"
+       ) + 
+  theme_bw()
+
+pas_plot5
+
 ```
 
 
@@ -479,7 +586,6 @@ s7p1 <- sub7 %>%
 
 optim7_1 <- optim(data = s7p1, fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0.5, 0.5, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
 fit7_1 <- optim7_1[[1]][1]+((optim7_1[[1]][2]-optim7_1[[1]][1])/(1+exp((optim7_1[[1]][3]-s7p1$x)/optim7_1[[1]][4])))
-
 
 
 # subject 7 pas 2
@@ -505,7 +611,7 @@ optim7_4 <- optim(data = s7p4, fn = RSS, par = par, method = 'L-BFGS-B', lower =
 fit7_4 <- optim7_4[[1]][1]+((optim7_4[[1]][2]-optim7_4[[1]][1])/(1+exp((optim7_4[[1]][3]-s7p4$x)/optim7_4[[1]][4])))
 
 
-sub7plot <- ggplot()+
+sub7plot_6 <- ggplot()+
   geom_smooth((aes(x = s7p1$x, y = fit7_1,color=s7p1$pas)))+
   geom_smooth((aes(x = s7p2$x, y = fit7_2, color=s7p2$pas)))+
   geom_smooth((aes(x = s7p3$x, y = fit7_3, color=s7p3$pas)))+
@@ -513,7 +619,7 @@ sub7plot <- ggplot()+
   labs(title = "Plot5 : fits for the PAS ratings")+
   labs(x = "targetframes", y = "fitted probability of being correct")
 
-
+sub7plot_6
 ```
 
   
@@ -526,8 +632,8 @@ model6_new <- glm(y ~ x*pas, data=sub7, family=binomial(link = 'logit'))
 sub7_model6new <- ggplot()+
     geom_smooth((aes(x = sub7$x, y = fitted.values(model6_new),color=sub7$pas)))
 
-pacman::p:load(gridExtra)
-grid.arrange(sub7plot,sub7_model6new)
+pacman::p_load(gridExtra)
+grid.arrange(sub7plot_6,sub7_model6new)
 
 
 ```
@@ -535,11 +641,9 @@ grid.arrange(sub7plot,sub7_model6new)
   iv. Comment on the differences between the fits - mention some advantages and disadvantages of each way  
 
 ```{r}
-grid.arrange(plot4,sub7plot)
+library(gridExtra)
+grid.arrange(pas_plot5,sub7plot_6)
 ```
-
-Plot 4 (flot sigmoid func)
-
 
 
 2) Finally, estimate the parameters for all subjects and each of their four PAS ratings. Then plot the estimated function at the group-level by taking the mean for each of the four parameters, _a_, _b_, _c_ and _d_ across subjects. A function should be estimated for each PAS-rating (it should look somewhat similar to Fig. 3 from the article:  https://doi.org/10.1016/j.concog.2019.03.007)
