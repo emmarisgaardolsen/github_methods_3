@@ -33,7 +33,9 @@ print(conda_list())
 To update your environment based on the updated `methods3_environment.yml` file, go to your _week_06_ folder and run the following from a _bash_ interpreter (e.g. _terminal_):  
 
 ```{bash, eval=FALSE}
+
 conda env create --force -f methods3_environment.yml
+
 ```
 
 The `--force` flag allows for overwriting  
@@ -45,7 +47,7 @@ The `--force` flag allows for overwriting
 a = 2
 # a <- 2 # results in a syntax error
 ## already assigned variables can be reassigned with basic arithmetic operations
-a += 2
+a += 2 # corresponds to a = a + 2
 print(a)
 a -= 1
 print(a)
@@ -55,10 +57,12 @@ a //= 2 # integer division
 print(a)
 a /= 2 # float  (numeric from R) division
 print(a)
-a **= 3 # exponentiation 
+a **= 3 # exponentiation
 print(a)
 
 a_list = [1, 2] # initiate a list (the square brackets) with the integers 1 and 2
+  # a little like c() function in R. 
+  # doesn't need to be the same time, could be numbers, letters, etc.
 b = a_list ## b now points to a_list, not to a new list with the integers 1 and 2 
 
 a_list.append(3) # add a new value to the end of the list
@@ -70,7 +74,12 @@ print(a_list[1])
 
 
 new_list = [0, 1, 2, 3, 4, 5]
-print(new_list[0:3])  # slicing
+print(new_list[0:3])  # slicing, choosing from the 0th up to the 3rd, not including 3?
+                      # you can slice backwards using negative variables
+                      
+# for, if, else, while: you don't have to use brackets, but you HAVE to use indt properly.
+  # as soon as you go out of your indentation you go out of the loop 
+  
 
 for index in range(0, 5): # indentation (use tabulation) controls scope of control variables 
     #(no brackets necessary),
@@ -81,7 +90,7 @@ for index in range(0, 5): # indentation (use tabulation) controls scope of contr
     print(value)
 
   
-this_is_true = True # logical values
+this_is_true = True # logical values, only first letter capitalized
 this_is_false = False
     
 # define functions using def
@@ -96,14 +105,22 @@ print(fix_my_p_value(True))
 
 
 import numpy # methods of numpy can now be accessed as below
-# importing packages (similar to library)
+# import: importing packages (similar to library)
+# difference from R: you specify package AND function. e.g. "numpy.arrange"
+
 
 print(numpy.arange(1, 10)) # see the dot
 print(numpy.abs(-3))
+
 import numpy as np # you can import them with another name than its default
+  # the one above allow you to name it differently!! 
+  
 print(np.cos(np.pi))
-from numpy import pi, arange # or you can import specific methods
+
+from numpy import pi, arange # or you can import specific methods from a package
+
 print(arange(1, 7))
+
 print(pi)
 
 matrix = np.ones(shape=(5, 5)) # create a matrix of ones
@@ -113,6 +130,7 @@ identity[:, 2] = 5 # exchange everything in the second column with 5's
 ## no dots in names - dots indicate applying a method like the dollar sign $ in R
 
 import matplotlib.pyplot as plt
+
 plt.figure() # create new figure
 plt.plot([1, 2], [1, 2], 'b-') # plot a blue line
 # plt.show() # show figure
@@ -121,34 +139,72 @@ plt.plot([2, 1], [2, 1], 'ro') # scatter plot (red)
 plt.xlabel('a label')
 plt.title('a title')
 plt.legend(['a legend', 'another legend'])
-# plt.show()
+
+plt.show()
 ```
 
 1) Do a linear regression based on _x_, _X_ and _y_ below (_y_ as the dependent variable) (Exercise 1.1)  
     i. find $\hat{\beta}$ and $\hat{y}$ (@ is matrix multiplication)
     ii. plot a scatter plot of _x_, _y_ and add a line based on $\hat{y}$ (use `plt.plot` after running `import matplotlib.pyplot as plt`)  
+    
 2) Create a model matrix, $X$ that estimates, $\hat\beta$ the means of the three sets of observations below, $y_1, y_2, y_3$ (Exercise 1.2)
     i. find $\hat\beta$ based on this $X$  
-    ii. Then create an $X$ where the resulting $\hat\beta$ indicates: 1) the difference between the mean of $y_1$ and the mean of $y_2$; 2) the mean of $y_2$; 3) the difference between the mean of $y_3$ and the mean of $y_1$  
+    ii. Then create an $X$ where the resulting $\hat\beta$ indicates: 1) the difference between the mean of $y_1$ and the mean of $y_2$; 2) the mean of $y_2$; 3) the difference between the mean of $y_3$ and the mean of $y_1$
+    
 3) Finally, find the F-value for this model (from exercise 1.2.ii) and its degrees of freedom. What is the _p_-value associated with it? (You can import the inverse of the cumulative probability density function `ppf` for _F_ using `from scipy.stats import f` and then run `1 - f.ppf`)
     i. plot the probability density function `f.pdf` for the correct F-distribution and highlight the _F_-value that you found  
     ii. how great a percentage of the area of the curve is to right of the highlighted point
 
 ```{python}
+
 # Exercise 1.1
 import numpy as np
 np.random.seed(7) # for reproducibility
 
-x = np.arange(10)
-y = 2 * x
-y = y.astype(float)
+x = np.arange(10) # 0 to 9. our x values
+y = 2 * x # our y values. all values from 0 to 9, each of them multiplied by 2
+y = y.astype(float) # adding decimals?
 n_samples = len(y)
-y += np.random.normal(loc=0, scale=1, size=n_samples)
+y += np.random.normal(loc=0, scale=1, size=n_samples) # kommatal med decimaler
+  # loc = center of distribution (mean)
+  # scale = standard
 
-X = np.zeros(shape=(n_samples, 2))
-X[:, 0] = x ** 0
-X[:, 1] = x ** 1
 
+X = np.zeros(shape=(n_samples, 2)) # matrix with empty entries
+X[:, 0] = x ** 0 # everything in first col is "opløftet i 0". anything opløftet i 0 is 1 :)))))
+X[:, 1] = x ** 1 # everything in the second col (1 is 2nd because index starts at 0)
+
+
+# Get OLS coefficient estimates from (X*X)^(-1)X*Y
+  # .T transposes a matrix
+  # dot(X,Y) is for matrix multiplication
+
+bhat = np.dot(np.linalg.inv(X.T @ X), X.T @ y))
+print(bhat)
+
+# y_hat = X * bhat
+yhat = X @ bhat # matrix multiplication
+print(yhat)
+
+
+# plot a scatter plot of _x_, _y_ and add a line based on $\hat{y}$ (use `plt.plot` after running `import matplotlib.pyplot as plt`)  
+
+import numpy as np 
+import matplotlib.pyplot as plt
+
+
+```
+
+```{python}
+
+plt.figure() 
+plt.plot(x, y, 'o', color='pink') #create basic scatterplot
+plt.plot(x, bhat[1]*x+bhat[0])#add linear regression line to scatterplot 
+plt.plot(x, yhat, 'o', color='red')#use green as color for individual points
+plt.xlabel('x')
+plt.title('MY first linear regression plot wehuu')
+plt.legend(['regression line', 'predicted values'])
+plt.show()
 ```
 
 
